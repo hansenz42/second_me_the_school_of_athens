@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx:*)",
+      "Bash(mkdir -p /tmp/secondme-temp)",
+      "Bash(mv .secondme CLAUDE.md /tmp/secondme-temp/)",
+      "Bash(mv /tmp/secondme-temp/.secondme /tmp/secondme-temp/CLAUDE.md .)",
+      "Bash(mv .claude /tmp/secondme-temp/)",
+      "Bash(npm install:*)",
+      "Bash(ls:*)",
+      "Bash(npm run:*)",
+      "Bash(npm uninstall:*)"
+    ]
+  }
+}

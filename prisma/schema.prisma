@@ -1,0 +1,78 @@
+// SecondMe Knowledge Plaza - Prisma Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("POSTGRES_URL")
+}
+
+// 用户表 - 存储 SecondMe OAuth 用户信息
+model User {
+  id              String    @id @default(cuid())
+  secondmeUserId  String    @unique
+  nickname        String?
+  avatarUrl       String?
+  email           String?
+  accessToken     String
+  refreshToken    String
+  tokenExpiresAt  DateTime
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // 关联
+  roomParticipants RoomParticipant[]
+  messages          Message[]
+
+  @@map("users")
+}
+
+// 聊天室/主题房间
+model Room {
+  id          String    @id @default(cuid())
+  title       String    // 聊天室标题/主题
+  description String?   // 聊天室描述
+  status      String    @default("waiting") // waiting: 等待中, active: 进行中, finished: 已结束
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // 关联
+  participants RoomParticipant[]
+  messages     Message[]
+
+  @@map("rooms")
+}
+
+// 聊天室参与者
+model RoomParticipant {
+  id        String   @id @default(cuid())
+  role      String   @default("participant") // owner: 创建者, participant: 参与者
+  joinedAt  DateTime @default(now())
+
+  userId    String
+  roomId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roomId])
+  @@map("room_participants")
+}
+
+// 聊天消息
+model Message {
+  id        String   @id @default(cuid())
+  content   String   // 消息内容
+  sender    String   // 发送者: "user" 或 "agent"
+  senderId  String?  // 如果是用户发送，存储 user id；如果是 agent，存储 agent id
+
+  userId    String?
+  roomId    String
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@map("messages")
+}
