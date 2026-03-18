@@ -26,7 +26,9 @@ export function TopicCard({ topic }: TopicCardProps) {
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-300 hover:shadow-lg hover:border-blue-400 transition-all duration-300 cursor-pointer h-full flex flex-col">
         {/* 来源标签 */}
         <div className="flex items-center gap-2 mb-4">
-          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${sourceColor}`}>
+          <span
+            className={`text-xs font-semibold px-2.5 py-1 rounded-full ${sourceColor}`}
+          >
             {sourceLabel}
           </span>
           <span className="text-xs text-gray-600">
