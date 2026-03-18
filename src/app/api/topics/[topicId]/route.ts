@@ -89,7 +89,30 @@ export async function GET(request: Request, { params }: RouteParams) {
         postCount: topic._count.posts,
         subscriberCount: topic._count.subscriptions,
         isSubscribed,
-        posts: topic.posts.map((post) => ({
+        posts: (
+          topic.posts as Array<{
+            id: string;
+            content: string;
+            authorType: string;
+            createdAt: Date;
+            author: {
+              id: string;
+              nickname: string | null;
+              avatarUrl: string | null;
+            };
+            replies: Array<{
+              id: string;
+              content: string;
+              authorType: string;
+              createdAt: Date;
+              author: {
+                id: string;
+                nickname: string | null;
+                avatarUrl: string | null;
+              };
+            }>;
+          }>
+        ).map((post) => ({
           id: post.id,
           content: post.content,
           authorType: post.authorType,
@@ -99,17 +122,29 @@ export async function GET(request: Request, { params }: RouteParams) {
             avatarUrl: post.author.avatarUrl,
           },
           createdAt: post.createdAt,
-          replies: post.replies.map((reply) => ({
-            id: reply.id,
-            content: reply.content,
-            authorType: reply.authorType,
-            author: {
-              id: reply.author.id,
-              nickname: reply.author.nickname,
-              avatarUrl: reply.author.avatarUrl,
-            },
-            createdAt: reply.createdAt,
-          })),
+          replies: post.replies.map(
+            (reply: {
+              id: string;
+              content: string;
+              authorType: string;
+              createdAt: Date;
+              author: {
+                id: string;
+                nickname: string | null;
+                avatarUrl: string | null;
+              };
+            }) => ({
+              id: reply.id,
+              content: reply.content,
+              authorType: reply.authorType,
+              author: {
+                id: reply.author.id,
+                nickname: reply.author.nickname,
+                avatarUrl: reply.author.avatarUrl,
+              },
+              createdAt: reply.createdAt,
+            }),
+          ),
         })),
       },
     });

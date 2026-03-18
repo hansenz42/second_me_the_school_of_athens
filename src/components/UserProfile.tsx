@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Link from "next/link";
 
 interface User {
   id: string;
@@ -152,25 +151,6 @@ export function UserProfile({ user }: UserProfileProps) {
 
           {/* 操作按钮 */}
           <div className="p-3">
-            <Link
-              href="/rooms/new"
-              className="flex items-center gap-3 px-4 py-3 text-[#2D3436] hover:bg-[#FAF9F6] rounded-xl transition-colors"
-            >
-              <svg
-                className="w-5 h-5 text-[#6C5CE7]"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-              <span className="font-medium">创建房间</span>
-            </Link>
             <button
               onClick={handleLogout}
               className="w-full flex items-center gap-3 px-4 py-3 text-[#E74C3C] hover:bg-[#FEF2F2] rounded-xl transition-colors"

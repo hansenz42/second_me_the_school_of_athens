@@ -65,9 +65,10 @@ export async function GET(request: Request) {
         ): r is {
           userId: string;
           status: string;
+          sessionId: string;
           subscribedQueued: number;
           wanderQueued: number;
-          skippedCooldown: number;
+          skippedNoUnread: number;
         } => r.status === "ok",
       )
       .reduce((sum, r) => sum + r.subscribedQueued + r.wanderQueued, 0);

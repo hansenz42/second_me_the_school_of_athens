@@ -70,7 +70,7 @@ export async function GET(request: Request) {
 
       if (autoSubscribeUsers.length > 0) {
         await prisma.subscription.createMany({
-          data: autoSubscribeUsers.map((user) => ({
+          data: autoSubscribeUsers.map((user: { id: string }) => ({
             userId: user.id,
             topicId: newTopic.id,
           })),

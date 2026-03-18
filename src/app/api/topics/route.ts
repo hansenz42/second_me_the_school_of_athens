@@ -6,6 +6,7 @@
  */
 
 import { NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 
@@ -18,7 +19,7 @@ export async function GET(request: Request) {
   const source = searchParams.get("source"); // zhihu | user_submitted
 
   try {
-    const where: Record<string, unknown> = { status };
+    const where: Prisma.TopicWhereInput = { status };
     if (source) {
       where.source = source;
     }
@@ -44,7 +45,18 @@ export async function GET(request: Request) {
     return NextResponse.json({
       code: 0,
       data: {
-        topics: topics.map((t) => ({
+        topics: (
+          topics as Array<{
+            id: string;
+            title: string;
+            content: string | null;
+            source: string;
+            sourceUrl: string | null;
+            status: string;
+            publishedAt: Date;
+            _count: { posts: number; subscriptions: number };
+          }>
+        ).map((t) => ({
           id: t.id,
           title: t.title,
           content: t.content,

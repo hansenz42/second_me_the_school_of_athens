@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { ReportCard } from "./ReportCard";
 import { MainHeader } from "@/components/MainHeader";
+import type { WanderSummaryContent } from "@/lib/agent";
 
 export default async function ReportsPage() {
   const user = await getCurrentUser();
@@ -12,59 +13,41 @@ export default async function ReportsPage() {
     redirect("/api/auth/login");
   }
 
-  const reports = await prisma.report.findMany({
+  const summaries = await prisma.wanderSummary.findMany({
     where: { userId: user.id },
-    orderBy: { updatedAt: "desc" },
+    orderBy: { createdAt: "desc" },
     include: {
-      topic: {
+      wanderSession: {
         select: {
-          id: true,
-          title: true,
-          source: true,
-          sourceId: true,
+          totalTopics: true,
+          createdAt: true,
         },
       },
     },
   });
 
-  // 批量查询用户提交话题的提交者信息
-  const submitterIds = reports
-    .filter((r) => r.topic.source === "user_submitted" && r.topic.sourceId)
-    .map((r) => r.topic.sourceId as string);
+  const summaryCount = summaries.length;
 
-  const submitters =
-    submitterIds.length > 0
-      ? await prisma.user.findMany({
-          where: { id: { in: submitterIds } },
-          select: { id: true, nickname: true, avatarUrl: true },
-        })
-      : [];
-
-  const submitterMap = new Map(submitters.map((u) => [u.id, u]));
-
-  const reportCount = reports.length;
-
-  const serializedReports = reports.map((r) => ({
-    id: r.id,
-    topic: r.topic,
-    content: r.content as {
-      topic: string;
-      viewpoints: Array<{ source: string; content: string }>;
-      differences: string[];
-      takeaways: string[];
-    },
-    status: r.status,
-    syncedAt: r.syncedAt?.toISOString() || null,
-    updatedAt: r.updatedAt.toISOString(),
-    submitter:
-      r.topic.source === "user_submitted" && r.topic.sourceId
-        ? (submitterMap.get(r.topic.sourceId) ?? null)
-        : null,
+  const serializedSummaries = (
+    summaries as Array<{
+      id: string;
+      sessionId: string;
+      content: unknown;
+      createdAt: Date;
+      wanderSession: { totalTopics: number; createdAt: Date };
+    }>
+  ).map((s) => ({
+    id: s.id,
+    sessionId: s.sessionId,
+    content: s.content as WanderSummaryContent,
+    totalTopics: s.wanderSession.totalTopics,
+    wanderedAt: s.wanderSession.createdAt.toISOString(),
+    createdAt: s.createdAt.toISOString(),
   }));
 
   return (
     <div className="min-h-screen bg-white">
-      <MainHeader user={user} activeTab="reports" reportCount={reportCount} />
+      <MainHeader user={user} activeTab="reports" reportCount={summaryCount} />
 
       <main className="max-w-7xl mx-auto px-6 py-8">
         {/* 标题区域 */}
@@ -73,13 +56,12 @@ export default async function ReportsPage() {
             Agent 报告
           </h1>
           <p className="text-lg text-gray-700 max-w-2xl">
-            SecondMe 为你整合的知识报告，如果你觉得不错，可以一键加入到 SecondMe
-            知识库
+            每次漫游后，你的 SecondMe 会结合自身知识库，为你提炼认知升级要点
           </p>
         </section>
 
         {/* 报告列表 */}
-        {serializedReports.length === 0 ? (
+        {serializedSummaries.length === 0 ? (
           <div className="text-center py-16 bg-gray-50 rounded-xl border border-gray-300">
             <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
               <svg
@@ -96,9 +78,11 @@ export default async function ReportsPage() {
                 />
               </svg>
             </div>
-            <h3 className="text-lg font-bold text-gray-900 mb-2">还没有报告</h3>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">
+              还没有 Agent 报告
+            </h3>
             <p className="text-gray-700 mb-6">
-              订阅知识广场中的话题，你的 AI 分身会为你生成洞察报告
+              订阅话题后，等待下次 Agent 漫游完成，即可在此查看认知总结报告
             </p>
             <Link
               href="/"
@@ -109,13 +93,11 @@ export default async function ReportsPage() {
           </div>
         ) : (
           <div className="space-y-6">
-            {serializedReports.map((report) => (
-              <ReportCard
-                key={report.id}
-                report={report}
-                submitter={report.submitter}
-              />
-            ))}
+            {serializedSummaries.map(
+              (summary: (typeof serializedSummaries)[number]) => (
+                <ReportCard key={summary.id} summary={summary} />
+              ),
+            )}
           </div>
         )}
       </main>

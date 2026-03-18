@@ -22,8 +22,8 @@ export default async function MySubscriptionsPage({
   const { page: pageParam } = await searchParams;
   const currentPage = Math.max(1, parseInt(pageParam || "1", 10) || 1);
 
-  // 获取用户的报告数量
-  const reportCount = await prisma.report.count({
+  // 获取用户的漫游总结数量
+  const reportCount = await prisma.wanderSummary.count({
     where: { userId: user.id },
   });
 
@@ -53,7 +53,11 @@ export default async function MySubscriptionsPage({
   const totalPages = Math.ceil(totalSubscriptions / PAGE_SIZE);
 
   // 批量查询用户提交话题的提交者信息
-  const submitterIds = rawSubscriptions
+  const submitterIds = (
+    rawSubscriptions as Array<{
+      topic: { source: string; sourceId: string | null };
+    }>
+  )
     .filter((s) => s.topic.source === "user_submitted" && s.topic.sourceId)
     .map((s) => s.topic.sourceId as string);
 
@@ -65,10 +69,31 @@ export default async function MySubscriptionsPage({
         })
       : [];
 
-  const submitterMap = new Map(submitters.map((u) => [u.id, u]));
+  const submitterMap = new Map(
+    (
+      submitters as Array<{
+        id: string;
+        nickname: string | null;
+        avatarUrl: string | null;
+      }>
+    ).map((u) => [u.id, u]),
+  );
 
+  type RawSub = {
+    id: string;
+    unreadCount: number;
+    topic: {
+      id: string;
+      title: string;
+      content: string | null;
+      source: string;
+      sourceId: string | null;
+      publishedAt: Date;
+      _count: { posts: number; subscriptions: number };
+    };
+  };
   // 构建话题卡片数据
-  const subscriptionTopics = rawSubscriptions.map((sub) => ({
+  const subscriptionTopics = (rawSubscriptions as RawSub[]).map((sub) => ({
     id: sub.topic.id,
     title: sub.topic.title,
     content: sub.topic.content,
@@ -76,6 +101,7 @@ export default async function MySubscriptionsPage({
     postCount: sub.topic._count.posts,
     subscriberCount: sub.topic._count.subscriptions,
     publishedAt: sub.topic.publishedAt.toISOString(),
+    unreadCount: sub.unreadCount,
     submitter:
       sub.topic.source === "user_submitted" && sub.topic.sourceId
         ? (submitterMap.get(sub.topic.sourceId) ?? null)
@@ -124,14 +150,17 @@ export default async function MySubscriptionsPage({
         {subscriptionTopics.length > 0 ? (
           <>
             <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {subscriptionTopics.map((topic) => (
-                <TopicCard
-                  key={topic.id}
-                  topic={topic}
-                  isSubscribed={true}
-                  submitter={topic.submitter}
-                />
-              ))}
+              {(subscriptionTopics as typeof subscriptionTopics).map(
+                (topic) => (
+                  <TopicCard
+                    key={topic.id}
+                    topic={topic}
+                    isSubscribed={true}
+                    submitter={topic.submitter}
+                    unreadCount={topic.unreadCount}
+                  />
+                ),
+              )}
             </div>
             <Pagination
               currentPage={currentPage}

@@ -40,7 +40,9 @@ export default async function HomePage({
   const totalPages = Math.ceil(totalTopics / PAGE_SIZE);
 
   // 批量查询用户提交话题的提交者信息
-  const submitterIds = rawTopics
+  const submitterIds = (
+    rawTopics as Array<{ source: string; sourceId: string | null }>
+  )
     .filter((t) => t.source === "user_submitted" && t.sourceId)
     .map((t) => t.sourceId as string);
 
@@ -52,9 +54,27 @@ export default async function HomePage({
         })
       : [];
 
-  const submitterMap = new Map(submitters.map((u) => [u.id, u]));
+  const submitterMap = new Map(
+    (
+      submitters as Array<{
+        id: string;
+        nickname: string | null;
+        avatarUrl: string | null;
+      }>
+    ).map((u) => [u.id, u]),
+  );
 
-  const topics = rawTopics.map((t) => ({
+  const topics = (
+    rawTopics as Array<{
+      id: string;
+      title: string;
+      content: string | null;
+      source: string;
+      sourceId: string | null;
+      publishedAt: Date;
+      _count: { posts: number; subscriptions: number };
+    }>
+  ).map((t) => ({
     id: t.id,
     title: t.title,
     content: t.content,
@@ -85,6 +105,7 @@ export default async function HomePage({
     topicId: string;
     createdAt: Date;
     lastVisitAt: Date | null;
+    unreadCount: number;
     topic: {
       id: string;
       title: string;
@@ -129,10 +150,10 @@ export default async function HomePage({
         postCount: s.topic._count.posts,
       },
       lastVisitAt: s.lastVisitAt?.toISOString() || null,
-      hasNewPosts: false, // TODO: 计算是否有新帖子
+      hasNewPosts: s.unreadCount > 0,
     }));
 
-    reportCount = await prisma.report.count({
+    reportCount = await prisma.wanderSummary.count({
       where: { userId: user.id },
     });
   }
@@ -182,8 +203,13 @@ export default async function HomePage({
                     const submitterInfo =
                       sub.topic.source === "user_submitted" &&
                       sub.topic.sourceId
-                        ? submitters.find((s) => s.id === sub.topic.sourceId) ||
-                          null
+                        ? (
+                            submitters as Array<{
+                              id: string;
+                              nickname: string | null;
+                              avatarUrl: string | null;
+                            }>
+                          ).find((s) => s.id === sub.topic.sourceId) || null
                         : null;
                     return (
                       <TopicCard
@@ -198,6 +224,7 @@ export default async function HomePage({
                           publishedAt: sub.topic.publishedAt.toISOString(),
                         }}
                         isSubscribed={true}
+                        unreadCount={sub.unreadCount}
                         submitter={submitterInfo}
                       />
                     );
@@ -251,7 +278,7 @@ export default async function HomePage({
             {topics.length > 0 ? (
               <>
                 <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {topics.map((topic) => (
+                  {topics.map((topic: (typeof topics)[number]) => (
                     <TopicCard
                       key={topic.id}
                       topic={topic}

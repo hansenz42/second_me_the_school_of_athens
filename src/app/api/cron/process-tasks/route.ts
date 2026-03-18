@@ -9,7 +9,6 @@ import { prisma } from "@/lib/prisma";
 import { getPendingTasks, updateTaskStatus, type TaskPayload } from "@/tasks";
 import { handleReadTopic } from "@/tasks/read-topic";
 import { handleGeneratePost } from "@/tasks/generate-post";
-import { handleUpdateReport } from "@/tasks/update-report";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -86,12 +85,6 @@ export async function GET(request: Request) {
               taskId: task.id,
             });
             await handleGeneratePost(user, payload);
-            break;
-          case "update_report":
-            console.log("[process-tasks] 执行 update_report 任务", {
-              taskId: task.id,
-            });
-            await handleUpdateReport(user, payload);
             break;
         }
 

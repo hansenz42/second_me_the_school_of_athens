@@ -448,3 +448,163 @@ export async function syncReportToSecondMe(
     return { success: false };
   }
 }
+
+export interface WanderTopicSummary {
+  topicId: string;
+  title: string;
+  insights: string[]; // Agent 从该话题获得的启发（结合自身知识库）
+  recommended: boolean; // Agent 是否建议用户重点关注
+  reason: string; // 建议或不建议的理由
+}
+
+export interface WanderSummaryContent {
+  topics: WanderTopicSummary[];
+  overallTakeaways: string[]; // 本次 wander 对用户认知提升的总体建议
+  generatedAt: string;
+  [key: string]: unknown; // Required for Prisma JSON compatibility
+}
+
+/**
+ * 生成 wander 总结内容
+ * Agent 结合自身知识库，对本次 wander 的话题逐一提炼启发，并给出认知提升建议
+ */
+export async function generateWanderSummaryContent(
+  accessToken: string,
+  topics: Array<{
+    topicId: string;
+    title: string;
+    content: string | null;
+    posts: Array<{ authorName: string; authorType: string; content: string }>;
+  }>,
+): Promise<WanderSummaryContent> {
+  console.log("[generateWanderSummaryContent] 开始生成 wander 总结", {
+    topicsCount: topics.length,
+  });
+
+  const topicsText = topics
+    .map((t, i) => {
+      const postsText = t.posts
+        .slice(0, 5)
+        .map(
+          (p) =>
+            `  [${p.authorType === "agent" ? "AI 分身" : p.authorName}]: ${p.content.slice(0, 200)}`,
+        )
+        .join("\n");
+      return `【话题 ${i + 1}】${t.title}${t.content ? `\n描述：${t.content.slice(0, 100)}` : ""}
+讨论内容：
+${postsText || "  （暂无讨论）"}
+topicId: ${t.topicId}`;
+    })
+    .join("\n\n---\n\n");
+
+  const topicIdList = topics.map((t) => t.topicId).join('", "');
+
+  const actionControl = `仅输出合法 JSON 对象，不要解释。
+输出结构：
+{
+  "topics": [
+    {
+      "topicId": "话题ID（从以下列表中取）",
+      "title": "话题标题",
+      "insights": ["启发1", "启发2"],
+      "recommended": true 或 false,
+      "reason": "建议关注或不关注的原因"
+    }
+  ],
+  "overallTakeaways": ["认知提升建议1", "认知提升建议2", "认知提升建议3"]
+}
+
+话题 ID 必须从此列表中取值：["${topicIdList}"]
+
+你是一个知识型 AI 分身，刚刚完成了一次「漫游」。请基于你自身的知识库，对以下话题逐一进行分析：
+
+${topicsText}
+
+对每个话题请做到：
+1. 提炼 2~3 条启发（结合你自身知识库与话题讨论内容的差异，找出对用户有价值的认知点）
+2. 判断是否建议用户重点关注（根据话题与用户兴趣领域的契合度、知识价值）
+3. 给出建议理由
+
+最后提炼 3~5 条「overallTakeaways」，从 AI 分身视角告诉用户本次漫游最值得关注的认知升级点。`;
+
+  const response = await fetch(`${API_BASE_URL}/api/secondme/act/stream`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      message: "请对本次漫游阅读的话题进行总结分析，帮助用户提升认知",
+      actionControl,
+    }),
+  });
+
+  if (!response.ok) {
+    console.error("[generateWanderSummaryContent] Act API 调用失败", {
+      status: response.status,
+    });
+    // 返回降级内容
+    return {
+      topics: topics.map((t) => ({
+        topicId: t.topicId,
+        title: t.title,
+        insights: ["内容分析暂时不可用"],
+        recommended: false,
+        reason: "分析服务暂时不可用",
+      })),
+      overallTakeaways: ["本次漫游总结生成失败，请稍后重试"],
+      generatedAt: new Date().toISOString(),
+    };
+  }
+
+  const responseText = await response.text();
+  let content = "";
+
+  for (const line of responseText.split("\n")) {
+    if (!line.startsWith("data: ")) continue;
+    const data = line.slice(6).trim();
+    if (data === "[DONE]") break;
+    try {
+      const parsed = JSON.parse(data);
+      const delta = parsed?.choices?.[0]?.delta?.content;
+      if (delta) content += delta;
+    } catch {
+      // 忽略非 JSON 行
+    }
+  }
+
+  try {
+    const result = JSON.parse(stripCodeBlock(content));
+
+    const summary: WanderSummaryContent = {
+      topics: Array.isArray(result.topics) ? result.topics : [],
+      overallTakeaways: Array.isArray(result.overallTakeaways)
+        ? result.overallTakeaways
+        : [],
+      generatedAt: new Date().toISOString(),
+    };
+
+    console.log("[generateWanderSummaryContent] 总结生成完毕", {
+      topicsCount: summary.topics.length,
+      overallTakeawaysCount: summary.overallTakeaways.length,
+    });
+
+    return summary;
+  } catch (error) {
+    console.error("[generateWanderSummaryContent] JSON 解析失败", {
+      error: error instanceof Error ? error.message : String(error),
+      content: content.substring(0, 300),
+    });
+    return {
+      topics: topics.map((t) => ({
+        topicId: t.topicId,
+        title: t.title,
+        insights: ["内容解析失败"],
+        recommended: false,
+        reason: "内容解析失败",
+      })),
+      overallTakeaways: ["本次漫游总结解析失败，请稍后重试"],
+      generatedAt: new Date().toISOString(),
+    };
+  }
+}

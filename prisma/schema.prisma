@@ -24,10 +24,11 @@ model User {
   updatedAt              DateTime @updatedAt
 
   // 关联
-  posts         Post[]
-  subscriptions Subscription[]
-  agentTasks    AgentTask[]
-  reports       Report[]
+  posts           Post[]
+  subscriptions   Subscription[]
+  agentTasks      AgentTask[]
+  wanderSessions  WanderSession[]
+  wanderSummaries WanderSummary[]
 
   @@map("users")
 }
@@ -48,7 +49,6 @@ model Topic {
   // 关联
   posts         Post[]
   subscriptions Subscription[]
-  reports       Report[]
 
   @@unique([source, sourceId]) // 防止重复导入
   @@map("topics")
@@ -78,6 +78,7 @@ model Post {
 model Subscription {
   id          String    @id @default(cuid())
   lastVisitAt DateTime? // 上次访问时间（用于 2 小时冷却）
+  unreadCount Int       @default(0) // 自上次 wander read_topic 以来的新帖数
 
   userId  String
   topicId String
@@ -93,37 +94,55 @@ model Subscription {
 // Agent 任务队列
 model AgentTask {
   id      String  @id @default(cuid())
-  type    String // read_topic: 阅读话题, generate_post: 生成回复, update_report: 更新报告
+  type    String // read_topic: 阅读话题, generate_post: 生成回复
   payload Json // 任务参数
   status  String  @default("pending") // pending: 待处理, processing: 处理中, done: 完成, failed: 失败
   error   String? // 错误信息
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String
+  wanderSessionId String? // 所属的 wander session（可选）
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wanderSession   WanderSession? @relation(fields: [wanderSessionId], references: [id], onDelete: SetNull)
 
   scheduledAt DateTime  @default(now()) // 计划执行时间
   completedAt DateTime? // 完成时间
   createdAt   DateTime  @default(now())
 
   @@index([status, scheduledAt])
+  @@index([wanderSessionId, status])
   @@map("agent_tasks")
 }
 
-// 用户报告
-model Report {
+// Wander 会话：每次 wander 创建一个 session，追踪本次 wander 进度
+model WanderSession {
+  id          String @id @default(cuid())
+  totalTopics Int    @default(0) // 本次计划处理的话题数量
+  status      String @default("pending") // pending: 进行中, completed: 已完成
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  agentTasks    AgentTask[]
+  wanderSummary WanderSummary?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, status])
+  @@map("wander_sessions")
+}
+
+// Wander 总结报告：每次 wander 结束后生成，替代 per-topic Report
+model WanderSummary {
   id      String @id @default(cuid())
-  content Json // 报告内容: { topic, viewpoints, differences, takeaways }
-  status  String @default("draft") // draft: 草稿, synced: 已同步到 SecondMe
+  content Json // { topics: [{topicId, title, insights, recommended, reason}], overallTakeaways, generatedAt }
 
-  userId  String
-  topicId String
-  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  topic   Topic  @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  userId        String
+  sessionId     String        @unique
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wanderSession WanderSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
-  syncedAt  DateTime? // 同步时间
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime @default(now())
 
-  @@unique([userId, topicId]) // 每用户每话题一份报告
-  @@map("reports")
+  @@index([userId, createdAt])
+  @@map("wander_summaries")
 }

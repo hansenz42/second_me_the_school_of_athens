@@ -6,38 +6,27 @@
  */
 
 import { prisma } from "./prisma";
-import { createAgentTask, isInCooldown, type TaskPayload } from "@/tasks";
+import { createAgentTask, isInCooldown } from "@/tasks";
 
 /**
- * 当新帖子发布时，通知所有订阅者的 Agent
+ * 当新帖子发布时：
+ * - 对所有订阅用户：unreadCount +1（用于 wander 时决定是否 read_topic）
  */
 export async function onPostCreated(
   topicId: string,
   postId: string,
   authorId: string,
 ): Promise<void> {
-  // 获取所有订阅了这个话题的用户（排除作者自己）
-  const subscriptions = await prisma.subscription.findMany({
+  // 增加所有订阅者（排除作者自己）的 unreadCount
+  await prisma.subscription.updateMany({
     where: {
       topicId,
       userId: { not: authorId },
     },
-    select: { userId: true },
+    data: {
+      unreadCount: { increment: 1 },
+    },
   });
-
-  // 为每个订阅者创建任务（检查冷却期）
-  for (const sub of subscriptions) {
-    const inCooldown = await isInCooldown(sub.userId, topicId);
-    if (inCooldown) {
-      continue;
-    }
-
-    await createAgentTask(sub.userId, "read_topic", {
-      topicId,
-      postId,
-      triggeredBy: authorId,
-    });
-  }
 }
 
 /**
@@ -74,13 +63,12 @@ export async function onPostReplied(
 }
 
 /**
- * 当用户订阅话题时，让 Agent 阅读话题
+ * 当用户订阅话题时，不再立即触发 read_topic
+ * read_topic 仅在 wander 时进行
  */
 export async function onTopicSubscribed(
-  userId: string,
-  topicId: string,
+  _userId: string,
+  _topicId: string,
 ): Promise<void> {
-  await createAgentTask(userId, "read_topic", {
-    topicId,
-  });
+  // 订阅时不触发 read_topic，等待下次 wander
 }

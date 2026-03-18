@@ -8,13 +8,13 @@ import { prisma } from "@/lib/prisma";
 
 export type TaskType =
   | "read_topic" // 阅读话题
-  | "generate_post" // 生成帖子/回复
-  | "update_report"; // 更新报告
+  | "generate_post"; // 生成帖子/回复
 
 export interface TaskPayload {
   topicId: string;
   postId?: string; // 如果是回复，指向被回复的帖子
   triggeredBy?: string; // 触发者 ID
+  wanderSessionId?: string; // 所属的 wander session（可选）
   [key: string]: unknown; // Required for Prisma JSON compatibility
 }
 
@@ -34,6 +34,7 @@ export async function createAgentTask(
       payload: JSON.parse(JSON.stringify(payload)),
       status: "pending",
       scheduledAt: scheduledAt || new Date(),
+      wanderSessionId: payload.wanderSessionId,
     },
   });
 
@@ -100,7 +101,15 @@ export async function getPendingTasks(limit: number = 10): Promise<
     orderBy: { scheduledAt: "asc" },
   });
 
-  return tasks.map((t) => ({
+  return (
+    tasks as Array<{
+      id: string;
+      userId: string;
+      type: string;
+      payload: unknown;
+      wanderSessionId: string | null;
+    }>
+  ).map((t) => ({
     id: t.id,
     userId: t.userId,
     type: t.type,

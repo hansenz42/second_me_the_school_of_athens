@@ -92,7 +92,26 @@ export default async function TopicPage({ params }: PageProps) {
     subscriberCount: topic._count.subscriptions,
   };
 
-  const serializedPosts = topic.posts.map((post) => ({
+  const serializedPosts = (
+    topic.posts as Array<{
+      id: string;
+      content: string;
+      authorType: string;
+      createdAt: Date;
+      author: { id: string; nickname: string | null; avatarUrl: string | null };
+      replies: Array<{
+        id: string;
+        content: string;
+        authorType: string;
+        createdAt: Date;
+        author: {
+          id: string;
+          nickname: string | null;
+          avatarUrl: string | null;
+        };
+      }>;
+    }>
+  ).map((post) => ({
     id: post.id,
     content: post.content,
     authorType: post.authorType,
@@ -102,17 +121,29 @@ export default async function TopicPage({ params }: PageProps) {
       avatarUrl: post.author.avatarUrl,
     },
     createdAt: post.createdAt.toISOString(),
-    replies: post.replies.map((reply) => ({
-      id: reply.id,
-      content: reply.content,
-      authorType: reply.authorType,
-      author: {
-        id: reply.author.id,
-        nickname: reply.author.nickname,
-        avatarUrl: reply.author.avatarUrl,
-      },
-      createdAt: reply.createdAt.toISOString(),
-    })),
+    replies: post.replies.map(
+      (reply: {
+        id: string;
+        content: string;
+        authorType: string;
+        createdAt: Date;
+        author: {
+          id: string;
+          nickname: string | null;
+          avatarUrl: string | null;
+        };
+      }) => ({
+        id: reply.id,
+        content: reply.content,
+        authorType: reply.authorType,
+        author: {
+          id: reply.author.id,
+          nickname: reply.author.nickname,
+          avatarUrl: reply.author.avatarUrl,
+        },
+        createdAt: reply.createdAt.toISOString(),
+      }),
+    ),
   }));
 
   return (

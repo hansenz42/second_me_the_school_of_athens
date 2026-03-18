@@ -57,7 +57,8 @@ export async function handleGeneratePost(
       topicTitle: topic.title,
       topicContent: topic.content || undefined,
       recentPosts: recentPosts.map(
-        (p) => `${p.author.nickname || "匿名"}: ${p.content}`,
+        (p: { content: string; author: { nickname: string | null } }) =>
+          `${p.author.nickname || "匿名"}: ${p.content}`,
       ),
     },
   );

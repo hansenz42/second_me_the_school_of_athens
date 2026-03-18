@@ -1,7 +1,7 @@
 /**
  * Task: read_topic
  *
- * 详细阅读话题，判断是否发表意见，然后生成报告
+ * 详细阅读话题，判断是否发表意见；完成后重置 unreadCount，并在 wander 时触发总结生成
  */
 
 import { prisma } from "@/lib/prisma";
@@ -11,7 +11,7 @@ import {
   reportToAgentMemory,
 } from "@/lib/agent";
 import { updateLastVisit } from "@/tasks";
-import { handleUpdateReport } from "@/tasks/update-report";
+import { handleGenerateWanderSummary } from "@/tasks/generate-wander-summary";
 import type { TaskPayload } from "@/tasks";
 
 type TaskUser = { id: string; accessToken: string; nickname: string | null };
@@ -47,12 +47,18 @@ export async function handleReadTopic(
     postsCount: topic.posts.length,
   });
 
-  // 更新最后访问时间（仅限已订阅用户，不存在记录时忽略）
+  // 更新最后访问时间并重置 unreadCount（仅限已订阅用户）
   try {
     await updateLastVisit(user.id, payload.topicId);
-    console.log("[handleReadTopic] 已更新最后访问时间");
+    await prisma.subscription.update({
+      where: { userId_topicId: { userId: user.id, topicId: payload.topicId } },
+      data: { unreadCount: 0 },
+    });
+    console.log("[handleReadTopic] 已更新访问时间并重置 unreadCount");
   } catch {
-    console.log("[handleReadTopic] 未找到订阅记录，跳过访问时间更新");
+    console.log(
+      "[handleReadTopic] 未找到订阅记录，跳过访问时间和 unreadCount 更新",
+    );
   }
 
   // 上报阅读事件到 Agent Memory
@@ -76,7 +82,12 @@ export async function handleReadTopic(
   const { shouldReply } = await judgeAgentReply(
     user.accessToken,
     topic.title,
-    topic.posts.map((p) => ({
+    (
+      topic.posts as Array<{
+        content: string;
+        author: { nickname: string | null };
+      }>
+    ).map((p) => ({
       author: p.author.nickname || "匿名",
       content: p.content,
     })),
@@ -90,9 +101,12 @@ export async function handleReadTopic(
       {
         topicTitle: topic.title,
         topicContent: topic.content || undefined,
-        recentPosts: topic.posts.map(
-          (p) => `${p.author.nickname || "匿名"}: ${p.content}`,
-        ),
+        recentPosts: (
+          topic.posts as Array<{
+            content: string;
+            author: { nickname: string | null };
+          }>
+        ).map((p) => `${p.author.nickname || "匿名"}: ${p.content}`),
       },
     );
 
@@ -123,9 +137,54 @@ export async function handleReadTopic(
     console.log("[handleReadTopic] Agent 决定不回复此话题");
   }
 
-  // 直接执行更新报告（含 agent 最新回复）
-  console.log("[handleReadTopic] 执行 update_report");
-  await handleUpdateReport(user, { topicId: payload.topicId });
+  // 若本任务属于 wander session，检查是否所有任务都已完成
+  if (payload.wanderSessionId) {
+    console.log("[handleReadTopic] 检查 wander session 完成状态", {
+      sessionId: payload.wanderSessionId,
+    });
+    await checkAndGenerateWanderSummary(user, payload.wanderSessionId);
+  }
 
   console.log("[handleReadTopic] 处理完成");
+}
+
+/**
+ * 检查 wander session 中所有 read_topic 是否完成，若是则生成总结
+ * 注意：本函数在任务被标记 done 之前调用，所以当前任务还是 processing 状态
+ * 通过查询 done + processing 状态来判断是否为最后一个任务
+ */
+async function checkAndGenerateWanderSummary(
+  user: TaskUser,
+  wanderSessionId: string,
+): Promise<void> {
+  const session = await prisma.wanderSession.findUnique({
+    where: { id: wanderSessionId },
+    select: { totalTopics: true, status: true },
+  });
+
+  if (!session || session.status === "completed") {
+    return;
+  }
+
+  // 统计已处理（done 或 processing）的任务数
+  const processedCount = await prisma.agentTask.count({
+    where: {
+      wanderSessionId,
+      status: { in: ["done", "processing"] },
+    },
+  });
+
+  console.log("[checkAndGenerateWanderSummary] 进度检查", {
+    sessionId: wanderSessionId,
+    totalTopics: session.totalTopics,
+    processedCount,
+  });
+
+  // 当 processedCount === totalTopics 时，当前任务是最后一个
+  if (processedCount >= session.totalTopics && session.totalTopics > 0) {
+    console.log(
+      "[checkAndGenerateWanderSummary] 所有任务已完成，生成 wander 总结",
+    );
+    await handleGenerateWanderSummary(user, wanderSessionId);
+  }
 }

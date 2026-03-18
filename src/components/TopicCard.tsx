@@ -20,10 +20,16 @@ interface TopicCardProps {
     publishedAt: string;
   };
   isSubscribed?: boolean;
+  unreadCount?: number;
   submitter?: Submitter | null;
 }
 
-export function TopicCard({ topic, isSubscribed, submitter }: TopicCardProps) {
+export function TopicCard({
+  topic,
+  isSubscribed,
+  unreadCount = 0,
+  submitter,
+}: TopicCardProps) {
   const sourceLabel = topic.source === "zhihu" ? "知乎热议" : "用户提交";
   const sourceColor =
     topic.source === "zhihu"
@@ -33,12 +39,18 @@ export function TopicCard({ topic, isSubscribed, submitter }: TopicCardProps) {
   return (
     <Link href={`/topics/${topic.id}`}>
       <div
-        className={`bg-white rounded-xl p-6 shadow-sm border transition-all duration-300 cursor-pointer h-full flex flex-col hover:shadow-lg ${
+        className={`relative bg-white rounded-xl p-6 shadow-sm border transition-all duration-300 cursor-pointer h-full flex flex-col hover:shadow-lg ${
           isSubscribed
             ? "border-blue-400 shadow-blue-100 hover:border-blue-500"
             : "border-gray-300 hover:border-blue-400"
         }`}
       >
+        {/* unread badge */}
+        {isSubscribed && unreadCount > 0 && (
+          <span className="absolute top-3 right-3 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-orange-500 text-white text-[10px] font-bold shadow-sm">
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        )}
         {/* 来源标签 */}
         <div className="flex items-center justify-between gap-2 mb-4">
           <div className="flex items-center gap-2">
