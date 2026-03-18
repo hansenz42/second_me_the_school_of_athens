@@ -4,6 +4,7 @@ import { TopicCard } from "@/components/TopicCard";
 import { HomeClient } from "@/components/HomeClient";
 import { MainHeader } from "@/components/MainHeader";
 import { Pagination } from "@/components/Pagination";
+import { CreateTopicButton } from "@/components/CreateTopicButton";
 
 const PAGE_SIZE = 12;
 
@@ -158,7 +159,7 @@ export default async function HomePage({
             </section>
 
             {/* 操作区 */}
-            <HomeClient isLoggedIn={!!user} />
+            <HomeClient />
 
             {/* 我的订阅区域 */}
             {user && subscriptions.length > 0 && (
@@ -235,7 +236,16 @@ export default async function HomePage({
             )}
 
             {/* 所有话题区域标题 */}
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">所有话题</h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">所有话题</h2>
+
+              <div className="flex items-center gap-4">
+                <p className="text-sm text-[#B2BEC3] hidden sm:block">
+                  你可提交新话题，另外，每日还会同步自知乎热榜
+                </p>
+                <CreateTopicButton isLoggedIn={!!user} />
+              </div>
+            </div>
 
             {/* 话题网格 */}
             {topics.length > 0 ? (
