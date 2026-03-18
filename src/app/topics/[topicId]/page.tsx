@@ -1,8 +1,10 @@
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { TopicClient } from "./TopicClient";
+import { MarkdownContent } from "@/components/MarkdownContent";
 
 interface PageProps {
   params: Promise<{ topicId: string }>;
@@ -51,6 +53,18 @@ export default async function TopicPage({ params }: PageProps) {
 
   if (!topic) {
     notFound();
+  }
+
+  // 查询话题提交者信息（仅用户提交的话题）
+  let topicSubmitter: {
+    nickname: string | null;
+    avatarUrl: string | null;
+  } | null = null;
+  if (topic.source === "user_submitted" && topic.sourceId) {
+    topicSubmitter = await prisma.user.findUnique({
+      where: { id: topic.sourceId },
+      select: { nickname: true, avatarUrl: true },
+    });
   }
 
   // 检查用户是否已订阅
@@ -143,6 +157,37 @@ export default async function TopicPage({ params }: PageProps) {
                 >
                   {topic.source === "zhihu" ? "知乎热议" : "用户提交"}
                 </span>
+                {/* 提交者头像+用户名 */}
+                {topic.source === "zhihu" ? (
+                  <div className="flex items-center gap-1.5">
+                    <Image
+                      src="/liukanshan.png"
+                      alt="刘看山"
+                      width={20}
+                      height={20}
+                      className="rounded-full object-cover"
+                    />
+                    <span className="text-xs text-[#636E72]">刘看山</span>
+                  </div>
+                ) : topicSubmitter ? (
+                  <div className="flex items-center gap-1.5">
+                    {topicSubmitter.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={topicSubmitter.avatarUrl}
+                        alt={topicSubmitter.nickname || "用户"}
+                        className="w-5 h-5 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-5 h-5 rounded-full bg-purple-200 flex items-center justify-center text-[10px] text-purple-700 font-semibold">
+                        {(topicSubmitter.nickname || "匿").charAt(0)}
+                      </div>
+                    )}
+                    <span className="text-xs text-[#636E72]">
+                      {topicSubmitter.nickname || "匿名用户"}
+                    </span>
+                  </div>
+                ) : null}
                 <span className="text-xs text-[#B2BEC3]">
                   {new Date(topic.publishedAt).toLocaleDateString("zh-CN")}
                 </span>
@@ -154,7 +199,9 @@ export default async function TopicPage({ params }: PageProps) {
           </div>
 
           {topic.content && (
-            <p className="text-[#636E72] mb-6">{topic.content}</p>
+            <div className="text-[#636E72] mb-6">
+              <MarkdownContent content={topic.content} />
+            </div>
           )}
 
           <div className="flex items-center gap-6 text-sm text-[#B2BEC3]">

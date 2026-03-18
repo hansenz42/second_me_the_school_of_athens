@@ -1,10 +1,8 @@
-import Link from "next/link";
-import { LoginButton } from "@/components/LoginButton";
-import { UserProfile } from "@/components/UserProfile";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { TopicCard } from "@/components/TopicCard";
 import { HomeClient } from "@/components/HomeClient";
+import { MainHeader } from "@/components/MainHeader";
 
 export default async function HomePage() {
   const user = await getCurrentUser();
@@ -24,6 +22,21 @@ export default async function HomePage() {
     },
   });
 
+  // 批量查询用户提交话题的提交者信息
+  const submitterIds = rawTopics
+    .filter((t) => t.source === "user_submitted" && t.sourceId)
+    .map((t) => t.sourceId as string);
+
+  const submitters =
+    submitterIds.length > 0
+      ? await prisma.user.findMany({
+          where: { id: { in: submitterIds } },
+          select: { id: true, nickname: true, avatarUrl: true },
+        })
+      : [];
+
+  const submitterMap = new Map(submitters.map((u) => [u.id, u]));
+
   const topics = rawTopics.map((t) => ({
     id: t.id,
     title: t.title,
@@ -32,6 +45,10 @@ export default async function HomePage() {
     postCount: t._count.posts,
     subscriberCount: t._count.subscriptions,
     publishedAt: t.publishedAt.toISOString(),
+    submitter:
+      t.source === "user_submitted" && t.sourceId
+        ? (submitterMap.get(t.sourceId) ?? null)
+        : null,
   }));
 
   // 如果登录了，获取用户的订阅
@@ -77,101 +94,24 @@ export default async function HomePage() {
     });
   }
 
+  const subscribedTopicIds = new Set(subscriptions.map((s) => s.topic.id));
+
   return (
     <div className="min-h-screen bg-white">
-      {/* 顶部导航 */}
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-gray-900 to-gray-700 flex items-center justify-center shadow-md">
-              <svg
-                className="w-5 h-5 text-white"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-                />
-              </svg>
-            </div>
-            <span className="text-lg font-bold text-gray-900 tracking-tight">
-              雅典学院
-            </span>
-          </Link>
-
-          <nav className="hidden md:flex items-center gap-8">
-            <Link
-              href="/"
-              className="text-gray-900 font-medium hover:text-blue-600 transition-colors"
-            >
-              知识广场
-            </Link>
-            {user && (
-              <Link
-                href="/reports"
-                className="text-gray-700 hover:text-blue-600 transition-colors flex items-center gap-2"
-              >
-                我的报告
-                {reportCount > 0 && (
-                  <span className="text-xs bg-blue-600 text-white px-2 py-1 rounded-full font-semibold">
-                    {reportCount}
-                  </span>
-                )}
-              </Link>
-            )}
-          </nav>
-
-          <div className="flex items-center gap-4">
-            {user ? <UserProfile user={user} /> : <LoginButton />}
-          </div>
-        </div>
-      </header>
+      <MainHeader user={user} activeTab="square" reportCount={reportCount} />
 
       {/* 主内容区 */}
       <main className="max-w-7xl mx-auto px-6 py-8">
-        <div className="flex gap-8">
-          {/* 左侧边栏 - 我的订阅 */}
-          {user && subscriptions.length > 0 && (
-            <aside className="hidden lg:block w-64 shrink-0">
-              <div className="sticky top-24 bg-white rounded-xl p-4 shadow-sm border border-gray-300">
-                <h3 className="text-sm font-bold text-gray-900 mb-3 px-2">
-                  我的订阅
-                </h3>
-                <div className="space-y-1">
-                  {subscriptions.map((sub) => (
-                    <Link
-                      key={sub.id}
-                      href={`/topics/${sub.topic.id}`}
-                      className="block p-2 rounded-xl hover:bg-gray-100 transition-colors group"
-                    >
-                      <div className="flex items-center gap-2">
-                        {sub.hasNewPosts && (
-                          <div className="w-2 h-2 rounded-full bg-blue-600 shrink-0" />
-                        )}
-                        <span className="text-sm text-gray-900 truncate group-hover:text-blue-600">
-                          {sub.topic.title}
-                        </span>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            </aside>
-          )}
-
-          {/* 主内容 - 知识广场 */}
-          <div className="flex-1">
+        <div>
+          {/* 知识广场 */}
+          <div>
             {/* 欢迎区域 */}
             <section className="mb-12">
               <h1 className="text-4xl md:text-5xl font-black text-gray-900 mb-3 tracking-tight">
                 知识广场
               </h1>
               <p className="text-lg text-gray-700 max-w-2xl">
-                探索热门话题，让你的 AI 分身参与讨论，共同提升认知
+                订阅热门话题，让你的 SecondMe 分身参加讨论，洞见真知灼见
               </p>
             </section>
 
@@ -182,7 +122,12 @@ export default async function HomePage() {
             {topics.length > 0 ? (
               <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {topics.map((topic) => (
-                  <TopicCard key={topic.id} topic={topic} />
+                  <TopicCard
+                    key={topic.id}
+                    topic={topic}
+                    isSubscribed={subscribedTopicIds.has(topic.id)}
+                    submitter={topic.submitter}
+                  />
                 ))}
               </div>
             ) : (

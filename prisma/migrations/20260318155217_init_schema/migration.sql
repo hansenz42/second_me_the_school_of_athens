@@ -11,10 +11,8 @@ CREATE TABLE "users" (
     "autoSubscribeNewTopics" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-
     CONSTRAINT "users_pkey" PRIMARY KEY ("id")
 );
-
 -- CreateTable
 CREATE TABLE "topics" (
     "id" TEXT NOT NULL,
@@ -27,10 +25,8 @@ CREATE TABLE "topics" (
     "publishedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-
     CONSTRAINT "topics_pkey" PRIMARY KEY ("id")
 );
-
 -- CreateTable
 CREATE TABLE "posts" (
     "id" TEXT NOT NULL,
@@ -40,10 +36,8 @@ CREATE TABLE "posts" (
     "authorId" TEXT NOT NULL,
     "parentId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
     CONSTRAINT "posts_pkey" PRIMARY KEY ("id")
 );
-
 -- CreateTable
 CREATE TABLE "subscriptions" (
     "id" TEXT NOT NULL,
@@ -51,10 +45,8 @@ CREATE TABLE "subscriptions" (
     "userId" TEXT NOT NULL,
     "topicId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
     CONSTRAINT "subscriptions_pkey" PRIMARY KEY ("id")
 );
-
 -- CreateTable
 CREATE TABLE "agent_tasks" (
     "id" TEXT NOT NULL,
@@ -66,10 +58,8 @@ CREATE TABLE "agent_tasks" (
     "scheduledAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "completedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
     CONSTRAINT "agent_tasks_pkey" PRIMARY KEY ("id")
 );
-
 -- CreateTable
 CREATE TABLE "reports" (
     "id" TEXT NOT NULL,
@@ -80,45 +70,40 @@ CREATE TABLE "reports" (
     "syncedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-
     CONSTRAINT "reports_pkey" PRIMARY KEY ("id")
 );
-
 -- CreateIndex
 CREATE UNIQUE INDEX "users_secondmeUserId_key" ON "users"("secondmeUserId");
-
 -- CreateIndex
 CREATE UNIQUE INDEX "topics_source_sourceId_key" ON "topics"("source", "sourceId");
-
 -- CreateIndex
 CREATE UNIQUE INDEX "subscriptions_userId_topicId_key" ON "subscriptions"("userId", "topicId");
-
 -- CreateIndex
 CREATE INDEX "agent_tasks_status_scheduledAt_idx" ON "agent_tasks"("status", "scheduledAt");
-
 -- CreateIndex
 CREATE UNIQUE INDEX "reports_userId_topicId_key" ON "reports"("userId", "topicId");
-
 -- AddForeignKey
-ALTER TABLE "posts" ADD CONSTRAINT "posts_topicId_fkey" FOREIGN KEY ("topicId") REFERENCES "topics"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
+ALTER TABLE "posts"
+ADD CONSTRAINT "posts_topicId_fkey" FOREIGN KEY ("topicId") REFERENCES "topics"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 -- AddForeignKey
-ALTER TABLE "posts" ADD CONSTRAINT "posts_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
+ALTER TABLE "posts"
+ADD CONSTRAINT "posts_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 -- AddForeignKey
-ALTER TABLE "posts" ADD CONSTRAINT "posts_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "posts"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
+ALTER TABLE "posts"
+ADD CONSTRAINT "posts_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "posts"("id") ON DELETE
+SET NULL ON UPDATE CASCADE;
 -- AddForeignKey
-ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
+ALTER TABLE "subscriptions"
+ADD CONSTRAINT "subscriptions_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 -- AddForeignKey
-ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_topicId_fkey" FOREIGN KEY ("topicId") REFERENCES "topics"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
+ALTER TABLE "subscriptions"
+ADD CONSTRAINT "subscriptions_topicId_fkey" FOREIGN KEY ("topicId") REFERENCES "topics"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 -- AddForeignKey
-ALTER TABLE "agent_tasks" ADD CONSTRAINT "agent_tasks_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
+ALTER TABLE "agent_tasks"
+ADD CONSTRAINT "agent_tasks_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 -- AddForeignKey
-ALTER TABLE "reports" ADD CONSTRAINT "reports_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
+ALTER TABLE "reports"
+ADD CONSTRAINT "reports_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 -- AddForeignKey
-ALTER TABLE "reports" ADD CONSTRAINT "reports_topicId_fkey" FOREIGN KEY ("topicId") REFERENCES "topics"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "reports"
+ADD CONSTRAINT "reports_topicId_fkey" FOREIGN KEY ("topicId") REFERENCES "topics"("id") ON DELETE CASCADE ON UPDATE CASCADE;

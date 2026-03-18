@@ -45,6 +45,7 @@ function buildHeaders(
     "X-App-Key": appKey,
     "X-Timestamp": timestamp.toString(),
     "X-Log-Id": logId,
+    "X-Extra-Info": "",
     "X-Sign": signature,
     "Content-Type": "application/json",
   };
@@ -75,20 +76,39 @@ export async function fetchHotTopics(
   }
 
   try {
-    // 注意：这里需要确认知乎是否有热门话题获取接口
-    // 如果没有，则使用模拟数据
     const headers = buildHeaders(appKey, appSecret);
+    const url = `${ZHIHU_API_BASE}/billboard/list?top_cnt=${limit}&publish_in_hours=48`;
 
-    // TODO: 确认实际的热门话题 API 端点
-    // const response = await fetch(`${ZHIHU_API_BASE}/hot/topics?limit=${limit}`, {
-    //   method: 'GET',
-    //   headers,
-    // });
+    const response = await fetch(url, {
+      method: "GET",
+      headers,
+    });
 
-    // 暂时返回模拟数据
-    return getMockTopics(limit);
+    if (!response.ok) {
+      throw new Error(`知乎热榜 API 请求失败: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (result.status !== 0 || !result.data?.list) {
+      throw new Error(`知乎热榜 API 返回错误: ${result.msg}`);
+    }
+
+    return result.data.list.map(
+      (item: {
+        token: string;
+        title: string;
+        body?: string;
+        link_url?: string;
+      }) => ({
+        id: item.token,
+        title: item.title,
+        content: item.body,
+        url: item.link_url,
+      }),
+    );
   } catch (error) {
-    console.error("获取知乎热门话题失败:", error);
+    console.error("获取知乎热榜失败，降级使用模拟数据:", error);
     return getMockTopics(limit);
   }
 }

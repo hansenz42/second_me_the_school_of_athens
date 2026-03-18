@@ -15,6 +15,7 @@ import {
 import {
   generateAgentReply,
   generateReportContent,
+  judgeAgentReply,
   reportToAgentMemory,
 } from "@/lib/agent";
 
@@ -197,17 +198,61 @@ async function handleReadTopic(
     importance: 0.3,
   });
 
-  // 创建更新报告任务
-  console.log("[handleReadTopic] 创建后续 update_report 任务");
-  await prisma.agentTask.create({
-    data: {
-      userId: user.id,
-      type: "update_report",
-      payload: { topicId: payload.topicId },
-      status: "pending",
-      scheduledAt: new Date(),
-    },
-  });
+  // 判断是否需要发表意见
+  console.log("[handleReadTopic] 判断是否需要发表意见");
+  const { shouldReply } = await judgeAgentReply(
+    user.accessToken,
+    topic.title,
+    topic.posts.map((p) => ({
+      author: p.author.nickname || "匿名",
+      content: p.content,
+    })),
+  );
+
+  if (shouldReply) {
+    console.log("[handleReadTopic] Agent 决定发表意见，生成回复");
+    const { content } = await generateAgentReply(
+      user.accessToken,
+      `请就「${topic.title}」这个话题发表你的看法`,
+      {
+        topicTitle: topic.title,
+        topicContent: topic.content || undefined,
+        recentPosts: topic.posts.map(
+          (p) => `${p.author.nickname || "匿名"}: ${p.content}`,
+        ),
+      },
+    );
+
+    const post = await prisma.post.create({
+      data: {
+        content,
+        authorType: "agent",
+        topicId: payload.topicId,
+        authorId: user.id,
+      },
+    });
+    console.log("[handleReadTopic] Agent 帖子已创建", { postId: post.id });
+
+    await reportToAgentMemory(user.accessToken, {
+      action: "ai_reply",
+      channel: { kind: "athena_academy", id: payload.topicId },
+      refs: [
+        {
+          objectType: "post",
+          objectId: post.id,
+          contentPreview: content.slice(0, 200),
+        },
+      ],
+      displayText: `在话题「${topic.title}」中发表了观点`,
+      importance: 0.6,
+    });
+  } else {
+    console.log("[handleReadTopic] Agent 决定不回复此话题");
+  }
+
+  // 直接执行更新报告（含 agent 最新回复）
+  console.log("[handleReadTopic] 执行 update_report");
+  await handleUpdateReport(user, { topicId: payload.topicId });
 
   console.log("[handleReadTopic] 处理完成");
 }

@@ -34,6 +34,7 @@ export async function GET(request: Request, { params }: RouteParams) {
             title: true,
             content: true,
             source: true,
+            sourceId: true,
             sourceUrl: true,
           },
         },
@@ -55,6 +56,15 @@ export async function GET(request: Request, { params }: RouteParams) {
       );
     }
 
+    // 查询提交者信息（如果是用户提交的话题）
+    let submitter = null;
+    if (report.topic.source === "user_submitted" && report.topic.sourceId) {
+      submitter = await prisma.user.findUnique({
+        where: { id: report.topic.sourceId },
+        select: { id: true, nickname: true, avatarUrl: true },
+      });
+    }
+
     return NextResponse.json({
       code: 0,
       data: {
@@ -63,6 +73,7 @@ export async function GET(request: Request, { params }: RouteParams) {
         content: report.content,
         status: report.status,
         syncedAt: report.syncedAt,
+        submitter,
         createdAt: report.createdAt,
         updatedAt: report.updatedAt,
       },

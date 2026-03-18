@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { ReportCard } from "./ReportCard";
+import { MainHeader } from "@/components/MainHeader";
 
 export default async function ReportsPage() {
   const user = await getCurrentUser();
@@ -20,10 +21,28 @@ export default async function ReportsPage() {
           id: true,
           title: true,
           source: true,
+          sourceId: true,
         },
       },
     },
   });
+
+  // 批量查询用户提交话题的提交者信息
+  const submitterIds = reports
+    .filter((r) => r.topic.source === "user_submitted" && r.topic.sourceId)
+    .map((r) => r.topic.sourceId as string);
+
+  const submitters =
+    submitterIds.length > 0
+      ? await prisma.user.findMany({
+          where: { id: { in: submitterIds } },
+          select: { id: true, nickname: true, avatarUrl: true },
+        })
+      : [];
+
+  const submitterMap = new Map(submitters.map((u) => [u.id, u]));
+
+  const reportCount = reports.length;
 
   const serializedReports = reports.map((r) => ({
     id: r.id,
@@ -37,41 +56,21 @@ export default async function ReportsPage() {
     status: r.status,
     syncedAt: r.syncedAt?.toISOString() || null,
     updatedAt: r.updatedAt.toISOString(),
+    submitter:
+      r.topic.source === "user_submitted" && r.topic.sourceId
+        ? (submitterMap.get(r.topic.sourceId) ?? null)
+        : null,
   }));
 
   return (
     <div className="min-h-screen bg-white">
-      {/* 顶部导航 */}
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-200">
-        <div className="max-w-4xl mx-auto px-6 py-4">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-gray-700 hover:text-gray-900 transition-colors"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M10 19l-7-7m0 0l7-7m-7 7h18"
-              />
-            </svg>
-            返回知识广场
-          </Link>
-        </div>
-      </header>
+      <MainHeader user={user} activeTab="reports" reportCount={reportCount} />
 
       <main className="max-w-4xl mx-auto px-6 py-8">
-        {/* 页面标题 */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-[#2D3436] mb-2">我的报告</h1>
           <p className="text-[#636E72]">
-            你的 AI 分身为你整理的知识洞见，帮助你更新认知
+            SecondMe 为你整合的知识报告，如果你觉得不错，可以一键加入到 SecondMe
+            知识库。
           </p>
         </div>
 
@@ -109,7 +108,11 @@ export default async function ReportsPage() {
         ) : (
           <div className="space-y-6">
             {serializedReports.map((report) => (
-              <ReportCard key={report.id} report={report} />
+              <ReportCard
+                key={report.id}
+                report={report}
+                submitter={report.submitter}
+              />
             ))}
           </div>
         )}

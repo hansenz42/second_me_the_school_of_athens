@@ -37,14 +37,14 @@ export function HomeClient({ isLoggedIn }: HomeClientProps) {
                 d="M12 4v16m8-8H4"
               />
             </svg>
-            提交话题
+            新话题
           </button>
         ) : (
           <a
             href="/api/auth/login"
             className="px-5 py-2.5 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors duration-200 shadow-sm"
           >
-            登录后提交话题
+            登录后创建新话题
           </a>
         )}
 

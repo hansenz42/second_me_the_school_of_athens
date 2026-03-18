@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { MarkdownContent } from "@/components/MarkdownContent";
 
 interface Post {
   id: string;
@@ -29,15 +29,11 @@ export function TopicClient({
   isLoggedIn,
   isSubscribed: initialSubscribed,
   initialPosts,
-  currentUserId,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  currentUserId: _currentUserId,
 }: TopicClientProps) {
-  const router = useRouter();
-  const [posts, setPosts] = useState<Post[]>(initialPosts);
+  const [posts] = useState<Post[]>(initialPosts);
   const [isSubscribed, setIsSubscribed] = useState(initialSubscribed);
-  const [newPost, setNewPost] = useState("");
-  const [replyTo, setReplyTo] = useState<string | null>(null);
-  const [replyContent, setReplyContent] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubscribing, setIsSubscribing] = useState(false);
 
   const handleSubscribe = async () => {
@@ -59,64 +55,6 @@ export function TopicClient({
       console.error("Subscribe error:", error);
     } finally {
       setIsSubscribing(false);
-    }
-  };
-
-  const handleSubmitPost = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newPost.trim()) return;
-
-    setIsSubmitting(true);
-    try {
-      const response = await fetch(`/api/topics/${topicId}/posts`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: newPost }),
-      });
-      const result = await response.json();
-      if (result.code === 0) {
-        setPosts([...posts, { ...result.data, replies: [] }]);
-        setNewPost("");
-        router.refresh();
-      }
-    } catch (error) {
-      console.error("Submit post error:", error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleSubmitReply = async (parentId: string) => {
-    if (!replyContent.trim()) return;
-
-    setIsSubmitting(true);
-    try {
-      const response = await fetch(`/api/topics/${topicId}/posts`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: replyContent, parentId }),
-      });
-      const result = await response.json();
-      if (result.code === 0) {
-        setPosts(
-          posts.map((post) => {
-            if (post.id === parentId) {
-              return {
-                ...post,
-                replies: [...(post.replies || []), result.data],
-              };
-            }
-            return post;
-          }),
-        );
-        setReplyContent("");
-        setReplyTo(null);
-        router.refresh();
-      }
-    } catch (error) {
-      console.error("Submit reply error:", error);
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -146,7 +84,7 @@ export function TopicClient({
       <div className="space-y-4 mb-8">
         {posts.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-2xl border border-[#E8E6E1]">
-            <p className="text-[#636E72]">还没有讨论，成为第一个发言的人吧！</p>
+            <p className="text-[#636E72]">还没有 SecondMe Agent参与讨论</p>
           </div>
         ) : (
           posts.map((post) => (
@@ -200,52 +138,19 @@ export function TopicClient({
                     </span>
                     {post.authorType === "agent" && (
                       <span className="text-xs px-1.5 py-0.5 rounded bg-[#6C5CE7]/10 text-[#6C5CE7]">
-                        AI 分身
+                        SecondMe Agent
                       </span>
                     )}
                     <span className="text-xs text-[#B2BEC3]">
                       {new Date(post.createdAt).toLocaleString("zh-CN")}
                     </span>
                   </div>
-                  <p className="text-[#2D3436] whitespace-pre-wrap">
-                    {post.content}
-                  </p>
-
-                  {/* 回复按钮 */}
-                  {isLoggedIn && (
-                    <button
-                      onClick={() =>
-                        setReplyTo(replyTo === post.id ? null : post.id)
-                      }
-                      className="mt-3 text-sm text-[#6C5CE7] hover:underline"
-                    >
-                      {replyTo === post.id ? "取消回复" : "回复"}
-                    </button>
-                  )}
+                  <MarkdownContent
+                    content={post.content}
+                    className="text-[#2D3436]"
+                  />
                 </div>
               </div>
-
-              {/* 回复输入框 */}
-              {replyTo === post.id && (
-                <div className="mt-4 ml-14">
-                  <textarea
-                    value={replyContent}
-                    onChange={(e) => setReplyContent(e.target.value)}
-                    placeholder="输入你的回复..."
-                    rows={3}
-                    className="w-full px-4 py-3 rounded-xl border border-[#E8E6E1] focus:outline-none focus:border-[#6C5CE7] transition-colors resize-none"
-                  />
-                  <div className="flex justify-end mt-2">
-                    <button
-                      onClick={() => handleSubmitReply(post.id)}
-                      disabled={isSubmitting || !replyContent.trim()}
-                      className="px-4 py-2 bg-[#6C5CE7] text-white rounded-lg text-sm hover:bg-[#5B4AD6] disabled:opacity-50 transition-colors"
-                    >
-                      {isSubmitting ? "发送中..." : "发送回复"}
-                    </button>
-                  </div>
-                </div>
-              )}
 
               {/* 回复列表 */}
               {(post.replies?.length ?? 0) > 0 && (
@@ -306,9 +211,10 @@ export function TopicClient({
                             {new Date(reply.createdAt).toLocaleString("zh-CN")}
                           </span>
                         </div>
-                        <p className="text-sm text-[#2D3436] whitespace-pre-wrap">
-                          {reply.content}
-                        </p>
+                        <MarkdownContent
+                          content={reply.content}
+                          className="text-sm text-[#2D3436]"
+                        />
                       </div>
                     </div>
                   ))}
@@ -318,41 +224,6 @@ export function TopicClient({
           ))
         )}
       </div>
-
-      {/* 发帖表单 */}
-      {isLoggedIn ? (
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#E8E6E1]">
-          <h3 className="font-semibold text-[#2D3436] mb-4">发表看法</h3>
-          <form onSubmit={handleSubmitPost}>
-            <textarea
-              value={newPost}
-              onChange={(e) => setNewPost(e.target.value)}
-              placeholder="分享你的观点..."
-              rows={4}
-              className="w-full px-4 py-3 rounded-xl border border-[#E8E6E1] focus:outline-none focus:border-[#6C5CE7] transition-colors resize-none mb-4"
-            />
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                disabled={isSubmitting || !newPost.trim()}
-                className="px-6 py-2.5 bg-[#6C5CE7] text-white rounded-xl font-medium hover:bg-[#5B4AD6] disabled:opacity-50 transition-colors"
-              >
-                {isSubmitting ? "发布中..." : "发布"}
-              </button>
-            </div>
-          </form>
-        </div>
-      ) : (
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#E8E6E1] text-center">
-          <p className="text-[#636E72] mb-4">登录后参与讨论</p>
-          <a
-            href="/api/auth/login"
-            className="inline-block px-6 py-2.5 bg-[#6C5CE7] text-white rounded-xl font-medium hover:bg-[#5B4AD6] transition-colors"
-          >
-            登录
-          </a>
-        </div>
-      )}
     </div>
   );
 }

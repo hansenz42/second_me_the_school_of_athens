@@ -10,6 +10,15 @@
 const API_BASE_URL =
   process.env.SECONDME_API_BASE_URL || "https://api.mindverse.com/gate/lab";
 
+/** 剥离 LLM 有时返回的 markdown 代码块包装，如 ```json\n{...}\n``` */
+function stripCodeBlock(text: string): string {
+  return text
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/, "")
+    .trim();
+}
+
 export interface ChatResponse {
   content: string;
   sessionId?: string;
@@ -195,7 +204,7 @@ ${posts.map((p) => `${p.author}: ${p.content}`).join("\n")}
   }
 
   try {
-    const result = JSON.parse(content);
+    const result = JSON.parse(stripCodeBlock(content));
     console.log("[analyzeViewpoints] 分析完成", {
       viewpointsCount: result.viewpoints?.length || 0,
       sentiment: result.sentiment,
@@ -215,6 +224,81 @@ ${posts.map((p) => `${p.author}: ${p.content}`).join("\n")}
       keyInsights: ["分析结果解析失败"],
       differences: [],
     };
+  }
+}
+
+/**
+ * 判断 Agent 是否需要对话题发表意见
+ */
+export async function judgeAgentReply(
+  accessToken: string,
+  topicTitle: string,
+  posts: Array<{ author: string; content: string }>,
+): Promise<{ shouldReply: boolean; reason: string }> {
+  console.log("[judgeAgentReply] 开始判断是否需要回复", {
+    topicTitle,
+    postsCount: posts.length,
+  });
+
+  const actionControl = `仅输出合法 JSON 对象，不要解释。
+输出结构：{ "shouldReply": true | false, "reason": "简短理由" }
+
+判断以下话题是否值得 Agent 发表新观点。
+话题：「${topicTitle}」
+${posts.length > 0 ? `\n已有讨论：\n${posts.map((p) => `${p.author}: ${p.content}`).join("\n")}` : "（暂无讨论内容）"}
+
+当话题有实质内容、存在讨论空间或尚无回复时，shouldReply 为 true；
+若话题空洞、内容极少不足以发表有价值观点，则为 false。`;
+
+  const message = `请判断是否需要就「${topicTitle}」发表看法`;
+
+  const response = await fetch(`${API_BASE_URL}/api/secondme/act/stream`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ message, actionControl }),
+  });
+
+  if (!response.ok) {
+    console.error("[judgeAgentReply] Act API 调用失败", {
+      status: response.status,
+    });
+    return { shouldReply: false, reason: "API 调用失败" };
+  }
+
+  const responseText = await response.text();
+  let content = "";
+
+  for (const line of responseText.split("\n")) {
+    if (!line.startsWith("data: ")) continue;
+    const data = line.slice(6).trim();
+    if (data === "[DONE]") break;
+    try {
+      const parsed = JSON.parse(data);
+      const delta = parsed?.choices?.[0]?.delta?.content;
+      if (delta) content += delta;
+    } catch {
+      // 忽略非 JSON 行
+    }
+  }
+
+  try {
+    const result = JSON.parse(stripCodeBlock(content));
+    console.log("[judgeAgentReply] 判断结果", {
+      shouldReply: result.shouldReply,
+      reason: result.reason,
+    });
+    return {
+      shouldReply: !!result.shouldReply,
+      reason: result.reason || "",
+    };
+  } catch {
+    console.warn("[judgeAgentReply] JSON 解析失败，默认不回复", {
+      content: content.substring(0, 200),
+    });
+    return { shouldReply: false, reason: "解析失败" };
   }
 }
 

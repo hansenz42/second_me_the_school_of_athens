@@ -1,7 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
+
+interface Submitter {
+  id: string;
+  nickname: string | null;
+  avatarUrl: string | null;
+}
 
 interface ReportContent {
   topic: string;
@@ -23,9 +30,10 @@ interface ReportCardProps {
     syncedAt: string | null;
     updatedAt: string;
   };
+  submitter?: Submitter | null;
 }
 
-export function ReportCard({ report }: ReportCardProps) {
+export function ReportCard({ report, submitter }: ReportCardProps) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [synced, setSynced] = useState(report.status === "synced");
   const [isExpanded, setIsExpanded] = useState(false);
@@ -63,6 +71,37 @@ export function ReportCard({ report }: ReportCardProps) {
               >
                 {report.topic.source === "zhihu" ? "知乎热议" : "用户话题"}
               </span>
+              {/* 提交者头像+用户名 */}
+              {report.topic.source === "zhihu" ? (
+                <div className="flex items-center gap-1">
+                  <Image
+                    src="/liukanshan.png"
+                    alt="刘看山"
+                    width={18}
+                    height={18}
+                    className="rounded-full object-cover"
+                  />
+                  <span className="text-xs text-[#636E72]">刘看山</span>
+                </div>
+              ) : submitter ? (
+                <div className="flex items-center gap-1">
+                  {submitter.avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={submitter.avatarUrl}
+                      alt={submitter.nickname || "用户"}
+                      className="w-[18px] h-[18px] rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-[18px] h-[18px] rounded-full bg-purple-200 flex items-center justify-center text-[10px] text-purple-700 font-semibold">
+                      {(submitter.nickname || "匿").charAt(0)}
+                    </div>
+                  )}
+                  <span className="text-xs text-[#636E72]">
+                    {submitter.nickname || "匿名用户"}
+                  </span>
+                </div>
+              ) : null}
               <span className="text-xs text-[#B2BEC3]">
                 更新于 {new Date(report.updatedAt).toLocaleString("zh-CN")}
               </span>
@@ -86,7 +125,7 @@ export function ReportCard({ report }: ReportCardProps) {
               disabled={isSyncing}
               className="px-4 py-2 bg-[#6C5CE7] text-white rounded-xl text-sm font-medium hover:bg-[#5B4AD6] disabled:opacity-50 transition-colors whitespace-nowrap"
             >
-              {isSyncing ? "同步中..." : "整合到 SecondMe"}
+              {isSyncing ? "同步中..." : "同步到 SecondMe"}
             </button>
           )}
         </div>
