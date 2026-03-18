@@ -74,7 +74,7 @@ export function TopicClient({
           {isSubscribing ? "处理中..." : isSubscribed ? "已订阅" : "订阅话题"}
         </button>
         <span className="text-sm text-[#636E72]">
-          订阅后，你的 SecondMe 身会参与讨论并为你提供报告
+          订阅后，你的 SecondMe 会参与讨论并为你提供报告
         </span>
       </div>
 

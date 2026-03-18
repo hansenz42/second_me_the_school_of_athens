@@ -66,14 +66,16 @@ export async function isInCooldown(
 
 /**
  * 更新订阅的最后访问时间（仅限已订阅用户）
+ * 使用 updateMany 避免记录不存在时抛错（处理未订阅话题的情况）
  */
 export async function updateLastVisit(
   userId: string,
   topicId: string,
 ): Promise<void> {
-  await prisma.subscription.update({
+  await prisma.subscription.updateMany({
     where: {
-      userId_topicId: { userId, topicId },
+      userId,
+      topicId,
     },
     data: {
       lastVisitAt: new Date(),
