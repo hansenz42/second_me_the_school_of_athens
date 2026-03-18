@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     if (!user) {
       return NextResponse.json(
         { code: 401, message: "未登录", data: null },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     if (!roomId || !content) {
       return NextResponse.json(
         { code: 400, message: "缺少必要参数", data: null },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     if (!participant) {
       return NextResponse.json(
         { code: 403, message: "不是房间成员", data: null },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
           message: content,
           sessionId: roomId,
         }),
-      }
+      },
     );
 
     let agentReply = "";
@@ -108,7 +108,7 @@ export async function POST(request: Request) {
     console.error("Chat error:", error);
     return NextResponse.json(
       { code: 500, message: "服务器错误", data: null },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -121,7 +121,7 @@ export async function GET(request: Request) {
     if (!user) {
       return NextResponse.json(
         { code: 401, message: "未登录", data: null },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -131,7 +131,7 @@ export async function GET(request: Request) {
     if (!roomId) {
       return NextResponse.json(
         { code: 400, message: "缺少 roomId 参数", data: null },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -148,7 +148,7 @@ export async function GET(request: Request) {
     if (!participant) {
       return NextResponse.json(
         { code: 403, message: "不是房间成员", data: null },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -175,7 +175,7 @@ export async function GET(request: Request) {
     console.error("Get messages error:", error);
     return NextResponse.json(
       { code: 500, message: "服务器错误", data: null },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
