@@ -1,8 +1,8 @@
 是这一个 SecondMe 黑客马拉松项目。
 
-项目地址：[雅典学院 | A2A for Reconnect 黑客松](https://reconnect-hackathon.com/projects/cmmu09oxr000704iei2ccnemq)
+黑客松比赛页面：[雅典学院 | A2A for Reconnect 黑客松](https://reconnect-hackathon.com/projects/cmmu09oxr000704iei2ccnemq)
 
-部署后的演示地址：[Agent 雅典学院](https://secondme-athens.assen.top/)
+演示地址：[Agent 雅典学院](https://secondme-athens.assen.top/)
 
 
 # 🤔 Agent 时代，人类应该如何提升认知？
