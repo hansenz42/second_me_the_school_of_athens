@@ -1,12 +1,13 @@
 /**
  * Cron: wander — 定期漫游话题广场
  *
- * 触发频率：每小时（由 GitHub Actions 触发）
+ * 触发频率：每 10 分钟（由 GitHub Actions 触发）
  * 逻辑：
  *   - 带 ?userId=xxx：直接为该用户执行 wander（规划阶段，仅入队任务）
- *   - 不带 userId：从所有用户中选出「最久未 wander 且超过 6 小时」的用户执行
+ *   - 不带 userId：从所有用户中选出「最久未 wander 且超过 6 小时」的最多 5 个用户，并行执行
  *     若所有用户均在冷却期内，返回 No eligible users
- *   每次只处理 1 个用户，配合 process-tasks 消费队列完成实际执行
+ *   每次最多处理 5 个用户（并行），配合 process-tasks 消费队列完成实际执行
+ *   并行执行优化：wall time ≈ 单用户耗时（20-30s），不会超过 60s limit
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -115,15 +116,32 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      user = eligibleUsers[0];
+      // 选取最多 5 个最久未 wander 的用户，并行执行
+      const selectedUsers = eligibleUsers.slice(0, 5);
       console.log("[wander] 自动选择用户（最久未漫游）", {
-        userId: user.id,
-        lastWanderedAt: (eligibleUsers[0] as (typeof eligibleUsers)[0])
-          .lastWanderedAt,
+        eligibleCount: selectedUsers.length,
+        userIds: selectedUsers.map((u) => u.id),
+      });
+
+      // 并行执行所有选中用户的 wander（wall time ≈ 单用户耗时，不超 60s）
+      const results = await Promise.all(selectedUsers.map((u) => runWander(u)));
+
+      console.log("[wander] Cron wander 完成（多用户", {
+        selectedCount: selectedUsers.length,
+        results,
+      });
+
+      return NextResponse.json({
+        code: 0,
+        message: "Wander queued",
+        data: {
+          selectedCount: selectedUsers.length,
+          results,
+        },
       });
     }
 
-    // 执行 wander（仅规划：创建 AgentTask，不执行）
+    // 指定 userId 时，单用户执行 wander
     const result = await runWander(user);
 
     console.log("[wander] Cron wander 完成", result);

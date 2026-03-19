@@ -1,9 +1,10 @@
 /**
  * Cron: 处理 Agent 任务队列
  *
- * 每次并行处理 2 个任务，由 GitHub Actions 每 10 分钟触发
+ * 每次并行处理最多 5 个任务，由 GitHub Actions 每 5 分钟触发
  * 支持任务类型：read_topic, generate_post, generate_wander_summary
  * fan-in 检查：read_topic 完成后，若同 session 无剩余任务，自动入队 generate_wander_summary
+ * 并行优化：wall time 约 25s（LLM 调用耗时），安全在 60s limit 内
  */
 
 import { NextResponse } from "next/server";
@@ -89,8 +90,8 @@ export async function GET(request: Request) {
   const results: Array<{ taskId: string; status: string; error?: string }> = [];
 
   try {
-    // 每次取 2 个任务并行处理（约 20-25s，在 60s 限制内安全完成）
-    const tasks = await getPendingTasks(2);
+    // 每次取 5 个任务并行处理（约 25s，在 60s 限制内安全完成）
+    const tasks = await getPendingTasks(5);
     console.log("[process-tasks] 获取待处理任务", { taskCount: tasks.length });
 
     if (tasks.length === 0) {
