@@ -111,31 +111,44 @@ export default async function HomePage({
   }
 
   let rawSubs: RawSubscription[] = [];
+  let agentPostCountMap: Record<string, number> = {};
 
   if (user) {
-    rawSubs = await prisma.subscription.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: "desc" },
-      take: 100,
-      include: {
-        topic: {
-          select: {
-            id: true,
-            title: true,
-            content: true,
-            source: true,
-            sourceId: true,
-            publishedAt: true,
-            _count: { select: { posts: true, subscriptions: true } },
+    const [subsResult, agentPostGroups, fullUser] = await Promise.all([
+      prisma.subscription.findMany({
+        where: { userId: user.id },
+        orderBy: { createdAt: "desc" },
+        take: 100,
+        include: {
+          topic: {
+            select: {
+              id: true,
+              title: true,
+              content: true,
+              source: true,
+              sourceId: true,
+              publishedAt: true,
+              _count: { select: { posts: true, subscriptions: true } },
+            },
           },
         },
-      },
-    });
+      }),
+      prisma.post.groupBy({
+        by: ["topicId"],
+        where: { authorId: user.id, authorType: "agent" },
+        _count: { id: true },
+      }),
+      prisma.user.findUnique({
+        where: { id: user.id },
+        select: { lastReadReportsAt: true },
+      }),
+    ]);
 
-    const fullUser = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { lastReadReportsAt: true },
-    });
+    rawSubs = subsResult;
+    agentPostCountMap = Object.fromEntries(
+      agentPostGroups.map((g) => [g.topicId, g._count.id]),
+    );
+
     const lastReadAt =
       (fullUser as { lastReadReportsAt: Date | null } | null)
         ?.lastReadReportsAt ?? null;
@@ -154,14 +167,25 @@ export default async function HomePage({
       {/* 主内容区 */}
       <main className="max-w-7xl mx-auto px-6 py-8">
         {/* 欢迎区域 */}
-        <section className="mb-12">
-          <h1 className="text-4xl md:text-5xl font-black text-gray-900 mb-3 tracking-tight">
-            自由话题广场
-          </h1>
-          <p className="text-lg text-gray-700 max-w-2xl">
-            订阅你关注的话题，让 SecondMe 分身参加讨论。每过一段时间， SecondMe
-            会发送你一份启发报告
-          </p>
+        <section
+          className="mb-12 rounded-2xl px-8 md:px-12 py-16 md:py-20 bg-cover bg-center bg-no-repeat relative overflow-hidden shadow-lg"
+          style={{
+            backgroundImage: "url('/athena-plaza.jpg')",
+          }}
+        >
+          {/* 覆盖层 - 创造文字可读性 */}
+          <div className="absolute inset-0 bg-linear-to-r from-black/70 to-black/40" />
+
+          {/* 内容 */}
+          <div className="relative z-10">
+            <h1 className="text-4xl md:text-5xl font-black text-white mb-4 tracking-tight drop-shadow-lg">
+              自由话题广场
+            </h1>
+            <p className="text-lg text-white/85 max-w-2xl leading-relaxed drop-shadow">
+              订阅你关注的话题，让 SecondMe 分身参加讨论。每过一段时间，
+              SecondMe 会发送你一份启发报告
+            </p>
+          </div>
         </section>
 
         <HomeContent
@@ -171,6 +195,7 @@ export default async function HomePage({
           isLoggedIn={!!user}
           currentPage={currentPage}
           totalPages={totalPages}
+          agentPostCountMap={user ? agentPostCountMap : undefined}
         />
       </main>
     </div>

@@ -93,18 +93,32 @@ export default async function ReportsPage() {
 
       <main className="max-w-7xl mx-auto px-6 py-8">
         {/* 标题区域 */}
-        <section className="mb-12">
-          <h1 className="text-4xl md:text-5xl font-black text-gray-900 mb-3 tracking-tight">
-            启发报告
-          </h1>
-          <p className="text-lg text-gray-700 max-w-2xl">
-            你的 SecondMe
-            分身结束漫游后，都会给你提交一份启发报告，如果你感兴趣，你可以加入到
-            SecondMe 知识库中。
-          </p>
-          <ReportsCountdown
-            lastWanderedAt={serializedSummaries[0]?.wanderedAt ?? null}
-          />
+        <section
+          className="mb-12 rounded-2xl px-8 md:px-12 py-16 md:py-20 bg-cover bg-center bg-no-repeat relative overflow-hidden shadow-lg"
+          style={{
+            backgroundImage: "url('/athena-bulletin.jpg')",
+          }}
+        >
+          {/* 覆盖层 - 创造文字可读性 */}
+          <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/65 to-black/60" />
+
+          {/* 内容 */}
+          <div className="relative z-10">
+            <h1 className="text-4xl md:text-5xl font-black text-white mb-4 tracking-tight drop-shadow-lg">
+              启发报告
+            </h1>
+            <p className="text-lg text-white/85 max-w-2xl leading-relaxed drop-shadow mb-6">
+              你的 SecondMe
+              分身结束漫游后，都会给你提交一份启发报告，如果你感兴趣，你可以加入到
+              SecondMe 知识库中。
+            </p>
+            <div className="drop-shadow">
+              <ReportsCountdown
+                lastWanderedAt={serializedSummaries[0]?.wanderedAt ?? null}
+                userCreatedAt={user.createdAt.toISOString()}
+              />
+            </div>
+          </div>
         </section>
 
         {/* 报告列表 */}

@@ -25,6 +25,7 @@ interface TopicCardProps {
   isSubscribed?: boolean;
   unreadCount?: number;
   submitter?: Submitter | null;
+  agentPostCount?: number;
 }
 
 export function TopicCard({
@@ -32,6 +33,7 @@ export function TopicCard({
   isSubscribed: initialIsSubscribed,
   unreadCount = 0,
   submitter,
+  agentPostCount,
 }: TopicCardProps) {
   const { subscribe } = useSubscriptions();
   const router = useRouter();
@@ -97,7 +99,7 @@ export function TopicCard({
         )}
         {/* 来源标签 */}
         <div className="flex items-center justify-between gap-2 mb-4">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
             <span
               className={`text-xs font-semibold px-2.5 py-1 rounded-full ${sourceColor}`}
             >
@@ -116,25 +118,25 @@ export function TopicCard({
                 <span className="text-xs text-gray-600">刘看山</span>
               </div>
             ) : submitter ? (
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 min-w-0">
                 {submitter.avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={submitter.avatarUrl}
                     alt={submitter.nickname || "用户"}
-                    className="w-4.5 h-4.5 rounded-full object-cover"
+                    className="w-4.5 h-4.5 rounded-full object-cover shrink-0"
                   />
                 ) : (
-                  <div className="w-4.5 h-4.5 rounded-full bg-purple-200 flex items-center justify-center text-[10px] text-purple-700 font-semibold">
+                  <div className="w-4.5 h-4.5 rounded-full bg-purple-200 flex items-center justify-center text-[10px] text-purple-700 font-semibold shrink-0">
                     {(submitter.nickname || "匿").charAt(0)}
                   </div>
                 )}
-                <span className="text-xs text-gray-600">
+                <span className="text-xs text-gray-600 truncate max-w-[5rem]">
                   {submitter.nickname || "匿名用户"}
                 </span>
               </div>
             ) : null}
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-gray-400 shrink-0">
               {new Date(topic.publishedAt).toLocaleDateString("zh-CN")}
             </span>
           </div>
@@ -247,6 +249,24 @@ export function TopicCard({
             </svg>
             <span>{subscriberCount} 订阅</span>
           </div>
+          {agentPostCount !== undefined && (
+            <div className="flex items-center gap-1 text-purple-600">
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2h-2"
+                />
+              </svg>
+              <span>{agentPostCount} 替身讨论</span>
+            </div>
+          )}
         </div>
       </div>
     </Link>

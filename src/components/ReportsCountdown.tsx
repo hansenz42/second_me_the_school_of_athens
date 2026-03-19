@@ -7,6 +7,8 @@ const WANDER_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 小时（与 wander cron 一
 interface ReportsCountdownProps {
   /** 上次 wander session 的时间（ISO string），没有报告时为 null */
   lastWanderedAt: string | null;
+  /** 用户账号创建时间（ISO string），作为首次倒计时的起点 */
+  userCreatedAt: string;
 }
 
 function formatDuration(ms: number): string {
@@ -20,28 +22,32 @@ function formatDuration(ms: number): string {
     .join(":");
 }
 
-function computeNextWanderAt(lastWanderedAt: string | null): Date {
-  if (!lastWanderedAt) {
-    return new Date(Date.now() + WANDER_INTERVAL_MS);
-  }
-  const candidate = new Date(
-    new Date(lastWanderedAt).getTime() + WANDER_INTERVAL_MS,
-  );
-  // 若预估时间已过，则从现在重新计算 6 小时
-  if (candidate.getTime() <= Date.now()) {
+function computeNextWanderAt(
+  lastWanderedAt: string | null,
+  userCreatedAt: string,
+): Date {
+  const baseTime = lastWanderedAt
+    ? new Date(lastWanderedAt).getTime()
+    : new Date(userCreatedAt).getTime();
+  const candidate = new Date(baseTime + WANDER_INTERVAL_MS);
+  // 若预估时间已过且已有过报告，则从现在重新计算 6 小时
+  if (candidate.getTime() <= Date.now() && lastWanderedAt) {
     return new Date(Date.now() + WANDER_INTERVAL_MS);
   }
   return candidate;
 }
 
-export function ReportsCountdown({ lastWanderedAt }: ReportsCountdownProps) {
+export function ReportsCountdown({
+  lastWanderedAt,
+  userCreatedAt,
+}: ReportsCountdownProps) {
   const [remaining, setRemaining] = useState<number>(() => {
-    const nextAt = computeNextWanderAt(lastWanderedAt);
+    const nextAt = computeNextWanderAt(lastWanderedAt, userCreatedAt);
     return Math.max(0, nextAt.getTime() - Date.now());
   });
 
   useEffect(() => {
-    const nextAt = computeNextWanderAt(lastWanderedAt);
+    const nextAt = computeNextWanderAt(lastWanderedAt, userCreatedAt);
 
     const tick = () => {
       const diff = nextAt.getTime() - Date.now();
@@ -55,7 +61,7 @@ export function ReportsCountdown({ lastWanderedAt }: ReportsCountdownProps) {
 
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [lastWanderedAt]);
+  }, [lastWanderedAt, userCreatedAt]);
 
   const isExpired = remaining >= WANDER_INTERVAL_MS - 1000;
 

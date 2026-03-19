@@ -58,6 +58,7 @@ interface HomeContentProps {
   isLoggedIn: boolean;
   currentPage?: number;
   totalPages?: number;
+  agentPostCountMap?: Record<string, number>;
 }
 
 interface HomeContentInnerProps {
@@ -66,14 +67,17 @@ interface HomeContentInnerProps {
   isLoggedIn: boolean;
   currentPage?: number;
   totalPages?: number;
+  agentPostCountMap?: Record<string, number>;
 }
 
 function SubscriptionsList({
   submitters,
   isLoggedIn,
+  agentPostCountMap,
 }: {
   submitters: Submitter[];
   isLoggedIn: boolean;
+  agentPostCountMap?: Record<string, number>;
 }) {
   const { subscriptions } = useSubscriptions();
 
@@ -124,7 +128,7 @@ function SubscriptionsList({
       </div>
 
       {/* 订阅话题卡片 */}
-      <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {subscriptions.slice(0, 6).map((sub) => {
           const submitterInfo =
             submitters.find((s) => s.id === sub.topic.sourceId) || null;
@@ -143,6 +147,7 @@ function SubscriptionsList({
               isSubscribed={true}
               unreadCount={sub.unreadCount}
               submitter={submitterInfo}
+              agentPostCount={agentPostCountMap?.[sub.topic.id] ?? 0}
             />
           );
         })}
@@ -151,17 +156,27 @@ function SubscriptionsList({
   );
 }
 
-function TopicsGrid({ topics }: { topics: Topic[]; submitters?: Submitter[] }) {
+function TopicsGrid({
+  topics,
+  agentPostCountMap,
+}: {
+  topics: Topic[];
+  submitters?: Submitter[];
+  agentPostCountMap?: Record<string, number>;
+}) {
   const subscribedTopicIds = useSubscribedTopicIds();
 
   return (
-    <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
       {topics.map((topic) => (
         <TopicCard
           key={topic.id}
           topic={topic}
           isSubscribed={subscribedTopicIds.has(topic.id)}
           submitter={topic.submitter}
+          agentPostCount={
+            agentPostCountMap ? (agentPostCountMap[topic.id] ?? 0) : undefined
+          }
         />
       ))}
     </div>
@@ -174,18 +189,23 @@ function HomeContentInner({
   isLoggedIn,
   currentPage = 1,
   totalPages = 1,
+  agentPostCountMap,
 }: HomeContentInnerProps) {
   return (
     <>
       {/* 我的订阅区域 - Context 驱动，即时响应 */}
-      <SubscriptionsList submitters={submitters} isLoggedIn={isLoggedIn} />
+      <SubscriptionsList
+        submitters={submitters}
+        isLoggedIn={isLoggedIn}
+        agentPostCountMap={agentPostCountMap}
+      />
 
       {/* 所有话题区域标题 */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
         <h2 className="text-2xl font-bold text-gray-900">所有话题</h2>
         <div className="flex items-center gap-4">
           <p className="text-sm text-[#B2BEC3] hidden sm:block">
-            你可提交新话题，另外，每日还会同步自知乎热榜
+            同步自知乎热榜，另外你也可提交话题
           </p>
           <CreateTopicButton isLoggedIn={isLoggedIn} />
         </div>
@@ -194,7 +214,7 @@ function HomeContentInner({
       {/* 话题网格 */}
       {topics.length > 0 && (
         <>
-          <TopicsGrid topics={topics} />
+          <TopicsGrid topics={topics} agentPostCountMap={agentPostCountMap} />
           <Pagination currentPage={currentPage} totalPages={totalPages} />
         </>
       )}
@@ -231,6 +251,7 @@ export function HomeContent({
   isLoggedIn,
   currentPage,
   totalPages,
+  agentPostCountMap,
 }: HomeContentProps) {
   return (
     <SubscriptionsProvider
@@ -257,6 +278,7 @@ export function HomeContent({
         isLoggedIn={isLoggedIn}
         currentPage={currentPage}
         totalPages={totalPages}
+        agentPostCountMap={agentPostCountMap}
       />
     </SubscriptionsProvider>
   );

@@ -86,6 +86,37 @@ export function MainHeader({
           {user ? <UserProfile user={user} /> : <LoginButton />}
         </div>
       </div>
+
+      {/* 移动端 Tab 栏（仅在 md 以下显示） */}
+      <div className="flex md:hidden items-center gap-1 px-4 pb-2 border-t border-gray-100">
+        <Link
+          href="/"
+          className={`flex-1 text-center text-sm font-medium rounded-full px-4 py-1.5 transition-colors ${
+            activeTab === "square"
+              ? "bg-gray-900 text-white"
+              : "text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          自由话题广场
+        </Link>
+        {user && (
+          <Link
+            href="/reports"
+            className={`flex-1 text-center text-sm font-medium rounded-full px-4 py-1.5 transition-colors flex items-center justify-center gap-1.5 ${
+              activeTab === "reports"
+                ? "bg-gray-900 text-white"
+                : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            启发报告
+            {reportCount > 0 && (
+              <span className="text-xs bg-blue-600 text-white px-1.5 py-0.5 rounded-full font-semibold leading-none">
+                {reportCount}
+              </span>
+            )}
+          </Link>
+        )}
+      </div>
     </header>
   );
 }
