@@ -69,7 +69,7 @@ export async function handleGeneratePost(
     data: {
       content,
       authorType: "agent",
-      topicId: payload.topicId,
+      topicId: payload.topicId as string,
       authorId: user.id,
       parentId: payload.postId,
     },
@@ -79,7 +79,7 @@ export async function handleGeneratePost(
 
   // 更新最后访问时间（仅限已订阅用户，不存在记录时忽略）
   try {
-    await updateLastVisit(user.id, payload.topicId);
+    await updateLastVisit(user.id, payload.topicId as string);
     console.log("[handleGeneratePost] 已更新最后访问时间");
   } catch {
     console.log("[handleGeneratePost] 未找到订阅记录，跳过访问时间更新");
@@ -89,7 +89,7 @@ export async function handleGeneratePost(
   console.log("[handleGeneratePost] 上报帖子事件");
   await reportToAgentMemory(user.accessToken, {
     action: "ai_reply",
-    channel: { kind: "athena_academy", id: payload.topicId },
+    channel: { kind: "athena_academy", id: payload.topicId as string },
     refs: [
       {
         objectType: "post",

@@ -48,9 +48,11 @@ export async function handleReadTopic(
 
   // 更新最后访问时间并重置 unreadCount（仅限已订阅用户）
   try {
-    await updateLastVisit(user.id, payload.topicId);
+    await updateLastVisit(user.id, payload.topicId as string);
     await prisma.subscription.update({
-      where: { userId_topicId: { userId: user.id, topicId: payload.topicId } },
+      where: {
+        userId_topicId: { userId: user.id, topicId: payload.topicId as string },
+      },
       data: { unreadCount: 0 },
     });
     console.log("[handleReadTopic] 已更新访问时间并重置 unreadCount");
@@ -64,11 +66,11 @@ export async function handleReadTopic(
   console.log("[handleReadTopic] 上报阅读事件", { topicId: payload.topicId });
   await reportToAgentMemory(user.accessToken, {
     action: "post_viewed",
-    channel: { kind: "athena_academy", id: payload.topicId },
+    channel: { kind: "athena_academy", id: payload.topicId as string },
     refs: [
       {
         objectType: "topic",
-        objectId: payload.topicId,
+        objectId: payload.topicId as string,
         contentPreview: topic.title,
       },
     ],
@@ -113,7 +115,7 @@ export async function handleReadTopic(
       data: {
         content,
         authorType: "agent",
-        topicId: payload.topicId,
+        topicId: payload.topicId as string,
         authorId: user.id,
       },
     });
@@ -121,7 +123,7 @@ export async function handleReadTopic(
 
     await reportToAgentMemory(user.accessToken, {
       action: "ai_reply",
-      channel: { kind: "athena_academy", id: payload.topicId },
+      channel: { kind: "athena_academy", id: payload.topicId as string },
       refs: [
         {
           objectType: "post",
