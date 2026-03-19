@@ -52,7 +52,7 @@ export function ReportCard({ summary }: WanderSummaryCardProps) {
           <div>
             <div className="flex items-center gap-2 mb-2">
               <span className="text-xs px-2 py-1 rounded-full bg-indigo-100 text-indigo-700 font-semibold">
-                Agent 报告
+                漫游报告
               </span>
               <span className="text-xs text-[#B2BEC3]">
                 {wanderedDate.toLocaleString("zh-CN", {

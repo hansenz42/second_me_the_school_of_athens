@@ -53,7 +53,7 @@ export default async function ReportsPage() {
         {/* 标题区域 */}
         <section className="mb-12">
           <h1 className="text-4xl md:text-5xl font-black text-gray-900 mb-3 tracking-tight">
-            Agent 报告
+            漫游报告
           </h1>
           <p className="text-lg text-gray-700 max-w-2xl">
             每次漫游后，你的 SecondMe 会结合自身知识库，为你提炼认知升级要点
@@ -79,7 +79,7 @@ export default async function ReportsPage() {
               </svg>
             </div>
             <h3 className="text-lg font-bold text-gray-900 mb-2">
-              还没有 Agent 报告
+              还没有漫游报告
             </h3>
             <p className="text-gray-700 mb-6">
               订阅话题后，等待下次 Agent 漫游完成，即可在此查看认知总结报告
