@@ -58,7 +58,7 @@ export async function GET(request: Request) {
     }
 
     const successCount = results.filter((r) => r.status === "ok").length;
-    const totalQueued = results
+    const totalProcessed = results
       .filter(
         (
           r,
@@ -66,17 +66,18 @@ export async function GET(request: Request) {
           userId: string;
           status: string;
           sessionId: string;
-          subscribedQueued: number;
-          wanderQueued: number;
+          subscribedProcessed: number;
+          wanderProcessed: number;
           skippedNoUnread: number;
+          summaryGenerated: boolean;
         } => r.status === "ok",
       )
-      .reduce((sum, r) => sum + r.subscribedQueued + r.wanderQueued, 0);
+      .reduce((sum, r) => sum + r.subscribedProcessed + r.wanderProcessed, 0);
 
     console.log("[wander] Cron wander 完成", {
       totalUsers: users.length,
       successCount,
-      totalQueued,
+      totalProcessed,
     });
 
     return NextResponse.json({
@@ -85,7 +86,7 @@ export async function GET(request: Request) {
       data: {
         totalUsers: users.length,
         successCount,
-        totalQueued,
+        totalProcessed,
         results,
       },
     });

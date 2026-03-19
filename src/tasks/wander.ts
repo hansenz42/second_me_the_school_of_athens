@@ -10,7 +10,9 @@
  */
 
 import { prisma } from "@/lib/prisma";
-import { createAgentTask } from "@/tasks";
+import { createAgentTask, updateTaskStatus } from "@/tasks";
+import { handleReadTopic } from "@/tasks/read-topic";
+import { handleGenerateWanderSummary } from "@/tasks/generate-wander-summary";
 
 const API_BASE_URL =
   process.env.SECONDME_API_BASE_URL || "https://api.mindverse.com/gate/lab";
@@ -120,9 +122,10 @@ ${topicList}
 export interface WanderResult {
   userId: string;
   sessionId: string;
-  subscribedQueued: number;
-  wanderQueued: number;
+  subscribedProcessed: number;
+  wanderProcessed: number;
   skippedNoUnread: number;
+  summaryGenerated: boolean;
 }
 
 /**
@@ -165,20 +168,21 @@ export async function runWander(user: {
     subscribedCount: subscribedTopicIds.length,
   });
 
-  let subscribedQueued = 0;
-  let wanderQueued = 0;
   let skippedNoUnread = 0;
 
-  // 记录已处理的话题 ID（去重）
-  const processedTopicIds = new Set<string>(subscribedTopicIds);
+  const taskItems: Array<{
+    taskId: string;
+    topicId: string;
+    source: "subscribed" | "wander";
+  }> = [];
 
-  // 为有新帖的订阅话题创建 read_topic 任务
+  // 为有新帖的订阅话题创建 read_topic 任务记录
   for (const topicId of subscribedTopicIds) {
-    await createAgentTask(user.id, "read_topic", {
+    const taskId = await createAgentTask(user.id, "read_topic", {
       topicId,
       wanderSessionId: session.id,
     });
-    subscribedQueued++;
+    taskItems.push({ taskId, topicId, source: "subscribed" });
   }
 
   // 若还有配额，由 Agent 筛选未订阅的感兴趣话题
@@ -215,14 +219,15 @@ export async function runWander(user: {
         remaining,
       );
 
+      const processedTopicIds = new Set<string>(subscribedTopicIds);
       for (const topicId of wanderTopicIds) {
         if (processedTopicIds.has(topicId)) continue;
-        await createAgentTask(user.id, "read_topic", {
+        const taskId = await createAgentTask(user.id, "read_topic", {
           topicId,
           wanderSessionId: session.id,
         });
+        taskItems.push({ taskId, topicId, source: "wander" });
         processedTopicIds.add(topicId);
-        wanderQueued++;
       }
     }
   } else {
@@ -233,11 +238,9 @@ export async function runWander(user: {
     skippedNoUnread = Math.max(0, allSubsCount - subscribedTopicIds.length);
   }
 
-  const totalQueued = subscribedQueued + wanderQueued;
+  const totalTopics = taskItems.length;
 
-  // 更新 WanderSession
-  if (totalQueued === 0) {
-    // 没有需要处理的话题，直接标记完成
+  if (totalTopics === 0) {
     await prisma.wanderSession.update({
       where: { id: session.id },
       data: { status: "completed", totalTopics: 0 },
@@ -245,26 +248,72 @@ export async function runWander(user: {
     console.log("[runWander] 没有需要处理的话题，session 标记 completed", {
       sessionId: session.id,
     });
-  } else {
-    await prisma.wanderSession.update({
-      where: { id: session.id },
-      data: { totalTopics: totalQueued },
+    return {
+      userId: user.id,
+      sessionId: session.id,
+      subscribedProcessed: 0,
+      wanderProcessed: 0,
+      skippedNoUnread,
+      summaryGenerated: false,
+    };
+  }
+
+  await prisma.wanderSession.update({
+    where: { id: session.id },
+    data: { totalTopics },
+  });
+
+  // 并行处理所有话题
+  console.log("[runWander] 开始并行处理话题", { totalTopics });
+  await Promise.all(
+    taskItems.map(async ({ taskId, topicId }) => {
+      await updateTaskStatus(taskId, "processing");
+      try {
+        await handleReadTopic(user, { topicId });
+        await updateTaskStatus(taskId, "done");
+        console.log("[runWander] 话题处理完成", { topicId });
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        console.error("[runWander] 话题处理失败", { topicId, error: errorMsg });
+        await updateTaskStatus(taskId, "failed", errorMsg);
+      }
+    }),
+  );
+
+  // 所有话题处理完成后，直接生成 wander 总结报告
+  let summaryGenerated = false;
+  try {
+    console.log("[runWander] 开始生成 wander 总结", { sessionId: session.id });
+    await handleGenerateWanderSummary(user, session.id);
+    summaryGenerated = true;
+    console.log("[runWander] wander 总结生成完成", { sessionId: session.id });
+  } catch (error) {
+    console.error("[runWander] 生成总结失败", {
+      sessionId: session.id,
+      error: error instanceof Error ? error.message : String(error),
     });
   }
+
+  const subscribedProcessed = taskItems.filter(
+    (t) => t.source === "subscribed",
+  ).length;
+  const wanderProcessed = taskItems.filter((t) => t.source === "wander").length;
 
   console.log("[runWander] wander 完成", {
     userId: user.id,
     sessionId: session.id,
-    subscribedQueued,
-    wanderQueued,
+    subscribedProcessed,
+    wanderProcessed,
     skippedNoUnread,
+    summaryGenerated,
   });
 
   return {
     userId: user.id,
     sessionId: session.id,
-    subscribedQueued,
-    wanderQueued,
+    subscribedProcessed,
+    wanderProcessed,
     skippedNoUnread,
+    summaryGenerated,
   };
 }

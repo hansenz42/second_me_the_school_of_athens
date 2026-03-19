@@ -11,7 +11,6 @@ import {
   reportToAgentMemory,
 } from "@/lib/agent";
 import { updateLastVisit } from "@/tasks";
-import { handleGenerateWanderSummary } from "@/tasks/generate-wander-summary";
 import type { TaskPayload } from "@/tasks";
 
 type TaskUser = { id: string; accessToken: string; nickname: string | null };
@@ -137,54 +136,5 @@ export async function handleReadTopic(
     console.log("[handleReadTopic] Agent 决定不回复此话题");
   }
 
-  // 若本任务属于 wander session，检查是否所有任务都已完成
-  if (payload.wanderSessionId) {
-    console.log("[handleReadTopic] 检查 wander session 完成状态", {
-      sessionId: payload.wanderSessionId,
-    });
-    await checkAndGenerateWanderSummary(user, payload.wanderSessionId);
-  }
-
   console.log("[handleReadTopic] 处理完成");
-}
-
-/**
- * 检查 wander session 中所有 read_topic 是否完成，若是则生成总结
- * 注意：本函数在任务被标记 done 之前调用，所以当前任务还是 processing 状态
- * 通过查询 done + processing 状态来判断是否为最后一个任务
- */
-async function checkAndGenerateWanderSummary(
-  user: TaskUser,
-  wanderSessionId: string,
-): Promise<void> {
-  const session = await prisma.wanderSession.findUnique({
-    where: { id: wanderSessionId },
-    select: { totalTopics: true, status: true },
-  });
-
-  if (!session || session.status === "completed") {
-    return;
-  }
-
-  // 统计已处理（done 或 processing）的任务数
-  const processedCount = await prisma.agentTask.count({
-    where: {
-      wanderSessionId,
-      status: { in: ["done", "processing"] },
-    },
-  });
-
-  console.log("[checkAndGenerateWanderSummary] 进度检查", {
-    sessionId: wanderSessionId,
-    totalTopics: session.totalTopics,
-    processedCount,
-  });
-
-  // 当 processedCount === totalTopics 时，当前任务是最后一个
-  if (processedCount >= session.totalTopics && session.totalTopics > 0) {
-    console.log(
-      "[checkAndGenerateWanderSummary] 所有任务已完成，生成 wander 总结",
-    );
-    await handleGenerateWanderSummary(user, wanderSessionId);
-  }
 }

@@ -7,7 +7,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getPendingTasks, updateTaskStatus, type TaskPayload } from "@/tasks";
-import { handleReadTopic } from "@/tasks/read-topic";
 import { handleGeneratePost } from "@/tasks/generate-post";
 
 export const runtime = "nodejs";
@@ -74,12 +73,6 @@ export async function GET(request: Request) {
         const payload = task.payload as TaskPayload;
 
         switch (task.type) {
-          case "read_topic":
-            console.log("[process-tasks] 执行 read_topic 任务", {
-              taskId: task.id,
-            });
-            await handleReadTopic(user, payload);
-            break;
           case "generate_post":
             console.log("[process-tasks] 执行 generate_post 任务", {
               taskId: task.id,
