@@ -1,4 +1,6 @@
-是这一个 SecondMe 黑客马拉松项目。
+是这一个知乎 x SecondMe 黑客马拉松项目。
+
+如果你喜欢本项目，请你帮我点个 🌟star🌟！
 
 黑客松比赛页面：[雅典学院 | A2A for Reconnect 黑客松](https://reconnect-hackathon.com/projects/cmmu09oxr000704iei2ccnemq)
 
