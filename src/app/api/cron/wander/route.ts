@@ -18,7 +18,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60; // Vercel Hobby plan 最大 60 秒
 
-const WANDER_COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6 小时
+const WANDER_COOLDOWN_MS = 4 * 60 * 60 * 1000; // 4 小时
 
 export async function GET(request: NextRequest) {
   console.log("[wander] Cron wander 开始", {
@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
         });
 
       if (eligibleUsers.length === 0) {
-        console.log("[wander] 所有用户均在 6 小时冷却期内，跳过");
+        console.log("[wander] 所有用户均在 4 小时冷却期内，跳过");
         return NextResponse.json({
           code: 0,
           message: "No eligible users",
